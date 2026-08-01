@@ -30,6 +30,8 @@ func (cv *CustomValidator) Validate(i any) error {
   }
   return nil
 }
+
+
 func main() {
   dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
@@ -77,7 +79,7 @@ e.POST("/users", func(c *echo.Context) error {
   // Handle POST request for creating a new user
   result:=db.Create(newUser);
   if result.Error != nil {
-    return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to create user"})
+    return c.JSON(http.StatusInternalServerError, map[string]string{"errorMessage": result.Error.Error()})
   }
   return c.JSON(http.StatusCreated, map[string]interface{}{"message": "User created successfully","data": newUser})
 });
