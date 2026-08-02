@@ -5,7 +5,6 @@ import (
 	"strings"
 	"ticketBooking/internal/httpresponse"
 	"ticketBooking/internal/user/dto"
-
 	"github.com/labstack/echo/v5"
 )
 
@@ -21,10 +20,7 @@ func NewHandler(s *Service) *handler {
 
 func (h *handler) CreateUser(c *echo.Context) error {
 
-
-	
-
-	var req dto.CreateRequest;
+    var req dto.CreateRequest;
 	if err :=c.Bind(&req); err!=nil{
 		return c.JSON(http.StatusBadRequest,httpresponse.Error{
 			Code:http.StatusBadRequest,
@@ -47,12 +43,6 @@ func (h *handler) CreateUser(c *echo.Context) error {
 		
 	}
 
-	
-// 	err :=h.service.repo.CreateUser(&User{
-// Name: req.Name,
-// Email: req.Email,
-// Password: req.Password,
-//  })
 
 res,err :=h.service.CreateUser(&req);
 
@@ -65,9 +55,50 @@ res,err :=h.service.CreateUser(&req);
 		})
 	}
 
-	// return c.JSON(http.StatusCreated,"ok");
+return c.JSON(http.StatusCreated,res);
 
-		return c.JSON(http.StatusCreated,res);
+
+}
+
+
+func (h *handler) LoginUser(c *echo.Context) error {
+
+    var req dto.LoginRequest;
+	if err :=c.Bind(&req); err!=nil{
+		return c.JSON(http.StatusBadRequest,httpresponse.Error{
+			Code:http.StatusBadRequest,
+			Message: "Invalid Request Method",
+			Details: err.Error(),
+		})
+
+
+		
+	}
+
+	if err :=c.Validate(&req); err!=nil{
+		return c.JSON(http.StatusInternalServerError,httpresponse.Error{
+			Code:http.StatusInternalServerError,
+			Message: strings.Split(err.Error(), ",")[2],
+			Details: err.Error(),
+		})
+
+
+		
+	}
+
+
+res,err :=h.service.LoginUser(&req);
+
+
+	if(err != nil){
+		return c.JSON(http.StatusInternalServerError,httpresponse.Error{
+			Code:http.StatusInternalServerError,
+			Message:strings.Split(err.Error(), ":")[0],
+			Details: err.Error(),
+		})
+	}
+
+return c.JSON(http.StatusCreated,res);
 
 
 }

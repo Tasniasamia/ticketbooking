@@ -8,6 +8,7 @@ import (
 )
 
 func RegisterAllRoutes(api *echo.Group, db *gorm.DB) {
+	
 	user.UserRegisterRoutes(api, db)
 	// booking.BookingRegisterRoutes(api, db)
 	// ticket.TicketRegisterRoutes(api, db)

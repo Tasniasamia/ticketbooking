@@ -5,4 +5,5 @@ type Response struct{
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	CreatedAt string `json:"created_at"`
+	Token string `json:"token,omitempty"`
 }

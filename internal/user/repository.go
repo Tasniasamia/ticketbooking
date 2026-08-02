@@ -2,12 +2,12 @@ package user
 
 import (
 	"errors"
-
-	"gorm.io/gorm"
+    "gorm.io/gorm"
 )
 
 type Repository interface {
 	CreateUser(user *User) error
+	GetUserByEmail(email string) (*User, error)
 }
 
 type repository struct {
@@ -30,3 +30,15 @@ func (r *repository) CreateUser(user *User) error {
   }
   return nil
 }
+
+
+func (r *repository) GetUserByEmail(email string) (*User, error) {
+	var user User
+	result := r.db.Where(&User{Email: email}).First(&user)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &user, nil
+}
+
+
