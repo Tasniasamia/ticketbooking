@@ -12,9 +12,7 @@ import (
 func ConnectDatabase(cfg Config)*gorm.DB {
 	dsn := cfg.Dsn
 
-	if dsn == "" {
-	cfg.Dsn="postgresql://neondb_owner:npg_r7nbCawdxM2h@ep-wandering-voice-axi8y3qf-pooler.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
-	}
+
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		TranslateError: true,

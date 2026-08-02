@@ -16,22 +16,23 @@ func NewUserService(repo Repository) *Service {
 }
 
 func (s *Service) CreateUser(req *dto.CreateRequest) (*dto.Response, error) {
- user:=&User{
-Name: req.Name,
-Email: req.Email,
-Password: req.Password,
- }
+	user := &User{
+		Name:  req.Name,
+		Email: req.Email,
+	}
 
- err := s.repo.CreateUser(user);
- if err != nil {
-	 return nil, err
- }
+	if err := user.HashPassword(req.Password); err != nil {
+		return nil, err
+	}
 
- return &dto.Response{
-	 Id: user.ID,
-	 Name: user.Name,
-	 Email: user.Email,
-	 CreatedAt: user.CreatedAt.String(),
- }, nil	
- 
+	if err := s.repo.CreateUser(user); err != nil {
+		return nil, err
+	}
+
+	return &dto.Response{
+		Id:        user.ID,
+		Name:      user.Name,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
+	}, nil
 }

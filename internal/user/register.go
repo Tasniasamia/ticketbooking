@@ -8,13 +8,13 @@ import (
 )
 
 
-func UserRegisterRoutes(e *echo.Echo,db *gorm.DB){
+func UserRegisterRoutes(e *echo.Group,db *gorm.DB){
 	NewUserRepository:=NewUserRepository(db);
 	NewUserService:=NewUserService(NewUserRepository);
 	NewUserHandler:=NewHandler(NewUserService);
 
 	e.POST("/users",NewUserHandler.CreateUser);
-		  e.GET("/", func(c *echo.Context) error {
+	e.GET("/", func(c *echo.Context) error {
     return c.JSON(http.StatusOK, map[string]string{"message": "Hello, World!"})
   });
 

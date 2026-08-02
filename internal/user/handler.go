@@ -2,8 +2,10 @@ package user
 
 import (
 	"net/http"
+	"strings"
+	"ticketBooking/internal/httpresponse"
 	"ticketBooking/internal/user/dto"
-    "ticketBooking/internal/httpresponse"
+
 	"github.com/labstack/echo/v5"
 )
 
@@ -37,7 +39,7 @@ func (h *handler) CreateUser(c *echo.Context) error {
 	if err :=c.Validate(&req); err!=nil{
 		return c.JSON(http.StatusInternalServerError,httpresponse.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Validation failed",
+			Message: strings.Split(err.Error(), ",")[2],
 			Details: err.Error(),
 		})
 
@@ -58,7 +60,7 @@ res,err :=h.service.CreateUser(&req);
 	if(err != nil){
 		return c.JSON(http.StatusInternalServerError,httpresponse.Error{
 			Code:http.StatusInternalServerError,
-			Message: "Validation failed",
+			Message:strings.Split(err.Error(), ":")[0],
 			Details: err.Error(),
 		})
 	}

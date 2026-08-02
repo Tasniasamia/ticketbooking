@@ -32,11 +32,14 @@ func Start(cfg config.Config,db *gorm.DB) {
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 
+
+
 	//router middleware
-	user.UserRegisterRoutes(e, db)
+	api:=e.Group("/api/v1");
+	RegisterAllRoutes(api, db)
 
 
-   cfg.Port="5000";
+   
 	port:=cfg.Port
   // server listening
 	if err := e.Start(":"+port); err != nil {
