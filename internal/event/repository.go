@@ -29,30 +29,22 @@ func (r *repository) GetAll(p query.Params) ([]*Event, int64, error) {
 	var events []*Event
 	var total int64
 
-	// base query
 	db := r.db.Model(&Event{})
 
+	// multi-lang fields
+	jsonbFields := []string{"title", "description", "location"}
+	db = query.Apply(db, p, nil, jsonbFields)
 
-	searchFields := []string{"title", "description", "location"}
-	db = query.Apply(db, p, searchFields)
-
-	
-	// total count (pagination-এর আগে)
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// pagination apply
 	db = query.Paginate(db, p)
-
 	if err := db.Find(&events).Error; err != nil {
 		return nil, 0, err
 	}
-
 	return events, total, nil
 }
-
-
 
 
 func (r *repository) GetByID(eventId uint) (*Event, error) {

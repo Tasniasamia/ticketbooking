@@ -68,22 +68,21 @@ func (h *handler) CreateEvent(c *echo.Context) error {
 
 func (h *handler) GetAllEvents(c *echo.Context) error {
 	params := query.Parse(c)
+	lang := c.QueryParam("lang")
+	if lang == "" {
+		lang = "en"
+	}
 
-	data, err := h.service.GetAllEvents(params)
+	data, err := h.service.GetAllEvents(params, lang)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
-			Success:      false,
-			StatusCode:   http.StatusInternalServerError,
-			Error:        true,
-			ErrorMessage: "Failed to fetch events",
-			ErrorDetails: err.Error(),
+			Success: false, StatusCode: http.StatusInternalServerError, Error: true,
+			ErrorMessage: "Failed to fetch events", ErrorDetails: err.Error(),
 		})
 	}
 
 	return c.JSON(http.StatusOK, httpresponse.Success{
-		Success:    true,
-		StatusCode: http.StatusOK,
-		Message:    "Events fetched successfully",
-		Data:       data,
+		Success: true, StatusCode: http.StatusOK,
+		Message: "Events fetched successfully", Data: data,
 	})
 }

@@ -95,19 +95,30 @@ func Parse(c *echo.Context) Params {
 }
 
 // Apply → GORM query-তে সব কিছু apply করে
-func Apply(db *gorm.DB, p Params, searchFields []string) *gorm.DB {
-	// 1. Search (ILIKE for postgres)
-	if p.Search != "" && len(searchFields) > 0 {
+func Apply(db *gorm.DB, p Params, searchFields []string, jsonbFields []string) *gorm.DB {
+	// 1. Search
+	if p.Search != "" {
 		var conditions []string
 		var args []interface{}
+
+		// সাধারণ string column
 		for _, field := range searchFields {
 			conditions = append(conditions, field+" ILIKE ?")
 			args = append(args, "%"+p.Search+"%")
 		}
-		db = db.Where(strings.Join(conditions, " OR "), args...)
+
+		// JSONB multi-lang column  →  title::text ILIKE '%...%'
+		for _, field := range jsonbFields {
+			conditions = append(conditions, field+"::text ILIKE ?")
+			args = append(args, "%"+p.Search+"%")
+		}
+
+		if len(conditions) > 0 {
+			db = db.Where(strings.Join(conditions, " OR "), args...)
+		}
 	}
 
-	// 2. Exact filters (status=active, category=vip ইত্যাদি)
+	// 2. Exact filters
 	for col, val := range p.Filters {
 		db = db.Where(col+" = ?", val)
 	}
