@@ -5,6 +5,7 @@ import (
     "ticketBooking/internal/auth"
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"
+	"ticketBooking/internal/middlewares"
 )
 
 
@@ -18,6 +19,7 @@ func UserRegisterRoutes(e *echo.Group,db *gorm.DB){
     authRoute:=e.Group("/auth");
 	authRoute.POST("/users",NewUserHandler.CreateUser);
     authRoute.POST("/login",NewUserHandler.LoginUser);
+    authRoute.GET("/me",NewUserHandler.GetMe,middleware.AuthMiddleware(JWTService));
 
 
 	authRoute.GET("/", func(c *echo.Context) error {

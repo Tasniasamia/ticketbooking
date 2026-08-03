@@ -75,3 +75,25 @@ return &dto.Response{
 
 
 }
+
+
+func (s *Service) GetMe(userId uint) (*dto.Response, error) {
+user,err :=s.repo.GetUserById(userId);
+
+if err != nil{
+	return nil,err;
+}
+
+if user == nil{
+	return nil,nil
+
+}
+return &dto.Response{
+	Id:        user.ID,
+	Name:      user.Name,
+	Email:     user.Email,
+	CreatedAt: user.CreatedAt.Format("2006-01-02 15:04:05"),
+}, nil
+
+
+}

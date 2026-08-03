@@ -8,6 +8,8 @@ import (
 type Repository interface {
 	CreateUser(user *User) error
 	GetUserByEmail(email string) (*User, error)
+	GetUserById(userId uint) (*User, error)
+	
 }
 
 type repository struct {
@@ -41,4 +43,14 @@ func (r *repository) GetUserByEmail(email string) (*User, error) {
 	return &user, nil
 }
 
+func (r *repository) GetUserById(userId uint) (*User, error) {
+	var user User
 
+	result := r.db.First(&user, userId)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &user, nil
+}
