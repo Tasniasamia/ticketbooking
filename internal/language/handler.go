@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"ticketBooking/internal/httpresponse"
 	"ticketBooking/internal/language/dto"
+	"ticketBooking/internal/utils/query"
 
 	"github.com/labstack/echo/v5"
 )
@@ -47,7 +48,15 @@ func (h *handler) Create(c *echo.Context) error {
 }
 
 func (h *handler) GetAll(c *echo.Context) error {
-	res, err := h.service.GetAll()
+	params := query.Parse(c)
+	lang := c.QueryParam("lang")
+
+
+	if lang == "" {
+		lang = "en"
+	}
+
+	res, err := h.service.GetAll(params, lang)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
 			Success: false, StatusCode: http.StatusInternalServerError, Error: true,

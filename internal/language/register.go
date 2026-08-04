@@ -1,13 +1,16 @@
 package language
 
 import (
+	"ticketBooking/internal/translation"
+
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"
 )
 
 func LanguageRegisterRoutes(e *echo.Group, db *gorm.DB) {
 	repo := NewRepository(db)
-	svc := NewService(repo)
+	transRepo := translation.NewRepository(db)
+svc := NewService(repo, transRepo)
 	h := NewHandler(svc)
 
 	route := e.Group("/languages")

@@ -1,10 +1,13 @@
 package language
 
-import "gorm.io/gorm"
+import (
+	"gorm.io/gorm"
+	"ticketBooking/internal/utils/query"
+)
 
 type Repository interface {
 	Create(lang *Language) error
-	GetAll() ([]*Language, error)
+    GetAll(p query.Params) ([]*Language, int64, error) 
 	GetByID(id uint) (*Language, error)
 	GetByCode(code string) (*Language, error)
 	Update(lang *Language) error
@@ -24,11 +27,28 @@ func (r *repository) Create(lang *Language) error {
 	return r.db.Create(lang).Error
 }
 
-func (r *repository) GetAll() ([]*Language, error) {
-	var list []*Language
-	err := r.db.Order("is_default DESC, name ASC").Find(&list).Error
-	return list, err
+func(r *repository) GetAll(p query.Params) ([]*Language, int64, error) {
+	var list []*Language;
+	var total int64;
+
+	db := r.db.Model(&Language{})
+
+	// multi-lang fields
+	searchFields := []string{"code", "name"}
+	db = query.Apply(db, p, searchFields, nil)
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	db = query.Paginate(db, p)
+	if err := db.Find(&list).Error; err != nil {
+		return nil, 0, err
+	}
+	return list, total, nil
 }
+
+
 
 func (r *repository) GetByID(id uint) (*Language, error) {
 	var lang Language

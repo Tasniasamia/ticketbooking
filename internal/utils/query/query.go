@@ -54,7 +54,7 @@ func Parse(c *echo.Context) Params {
 		// skip known params
 		switch key {
 		case "page", "limit", "search", "sort_by", "sort_dir",
-			"min_price", "max_price", "from_date", "to_date":
+			"min_price", "max_price", "from_date", "to_date","lang":
 			continue
 		}
 		filters[key] = values[0]
@@ -119,8 +119,10 @@ func Apply(db *gorm.DB, p Params, searchFields []string, jsonbFields []string) *
 	}
 
 	// 2. Exact filters
-	for col, val := range p.Filters {
-		db = db.Where(col+" = ?", val)
+	if(len(p.Filters) > 0) {
+		for col, val := range p.Filters {
+			db = db.Where(col+" = ?", val)
+		}
 	}
 
 	// 3. Price range

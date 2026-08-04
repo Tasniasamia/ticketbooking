@@ -2,15 +2,19 @@ package language
 
 import (
 	"errors"
+	"ticketBooking/internal/httpresponse"
 	"ticketBooking/internal/language/dto"
+	"ticketBooking/internal/translation"
+	"ticketBooking/internal/utils/query"
 )
 
 type Service struct {
 	repo Repository
+	transClean translation.Repository
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, transClean translation.Repository) *Service {
+	return &Service{repo: repo, transClean: transClean}
 }
 
 func (s *Service) Create(req *dto.CreateRequest) (*dto.Response, error) {
@@ -44,17 +48,23 @@ func (s *Service) Create(req *dto.CreateRequest) (*dto.Response, error) {
 	return toResponse(lang), nil
 }
 
-func (s *Service) GetAll() ([]*dto.Response, error) {
-	list, err := s.repo.GetAll()
+func (s *Service) GetAll(params query.Params, lang string) (*httpresponse.PaginatedData, error) {
+		list, total, err := s.repo.GetAll(params)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]*dto.Response, 0, len(list))
-	for _, l := range list {
-		result = append(result, toResponse(l))
+   docs := make([]*dto.Response, 0, len(list))
+      for _, l := range list {
+		docs = append(docs, toResponse(l))
 	}
-	return result, nil
+	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
+	return &httpresponse.PaginatedData{
+		Docs:           docs,
+		PaginationMeta: meta,
+	}, nil
 }
+
+
 
 func (s *Service) GetByID(id uint) (*dto.Response, error) {
 	lang, err := s.repo.GetByID(id)
@@ -104,6 +114,14 @@ func (s *Service) Delete(id uint) error {
 	if lang.IsDefault {
 		return errors.New("cannot delete default language")
 	}
+
+	// translation values থেকে language code remove
+	if s.transClean != nil {
+		if err := s.transClean.RemoveLangCodeFromAll(lang.Code); err != nil {
+			return err
+		}
+	}
+
 	return s.repo.Delete(id)
 }
 

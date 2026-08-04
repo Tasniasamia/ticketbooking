@@ -10,9 +10,13 @@ type LocalizedString map[string]string
 
 func (ls LocalizedString) Value() (driver.Value, error) {
 	if ls == nil {
-		return nil, nil
+		return "{}", nil
 	}
-	return json.Marshal(ls)
+	b, err := json.Marshal(ls)
+	if err != nil {
+		return nil, err
+	}
+	return string(b), nil   // ← []byte না, string
 }
 
 func (ls *LocalizedString) Scan(value interface{}) error {

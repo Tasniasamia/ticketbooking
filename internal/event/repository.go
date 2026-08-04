@@ -31,6 +31,7 @@ func (r *repository) GetAll(p query.Params) ([]*Event, int64, error) {
 
 	db := r.db.Model(&Event{})
 
+	
 	// multi-lang fields
 	jsonbFields := []string{"title", "description", "location"}
 	db = query.Apply(db, p, nil, jsonbFields)
