@@ -2,7 +2,7 @@ package server
 
 import (
 	"ticketBooking/internal/config"
-    "ticketBooking/internal/user"
+    "ticketBooking/internal/domain/user"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
