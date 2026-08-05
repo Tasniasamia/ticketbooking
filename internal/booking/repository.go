@@ -50,3 +50,5 @@ func (r *repository) GetByUserID(userID uint) ([]Booking, error) {
 func (r *repository) Update(booking *Booking) error {
 	return r.db.Save(booking).Error
 }
+
+

@@ -23,33 +23,31 @@ func generateBookingCode() string {
 }
 
 func (s *service) CreateBooking(userID uint, req dto.CreateRequest) (*dto.Response, error) {
+	// 1. আগে atomic ভাবে টিকেট কমাও
+	if err := s.eventRepo.DecrementTickets(req.EventID, req.Quantity); err != nil {
+		return nil, err // not enough tickets বা DB error
+	}
+
+	// 2. event নিয়ে price বের করো
 	eventData, err := s.eventRepo.GetByID(req.EventID)
 	if err != nil {
 		return nil, err
 	}
 
-	if eventData.AvailableTickets < req.Quantity {
-		return nil, ErrNotEnoughTickets
-	}
-
-	booking := &Booking{
+	// 3. booking তৈরি
+	b := &Booking{
 		UserID:      userID,
 		EventID:     req.EventID,
 		Quantity:    req.Quantity,
-		Status:     dto.BookingConfirmed,
+		Status:      dto.BookingConfirmed,
 		TotalPrice:  float64(req.Quantity) * float64(eventData.Price),
 		BookingCode: generateBookingCode(),
 	}
 
-	if err := s.bookingRepo.Create(booking); err != nil {
+	if err := s.bookingRepo.Create(b); err != nil {
+		// optional: টিকেট ফেরত দিতে পারো (compensate)
 		return nil, err
 	}
 
-	// টিকেট কমিয়ে দাও
-	eventData.AvailableTickets -= req.Quantity
-	if err := s.eventRepo.Update(eventData); err != nil {
-		return nil, err
-	}
-
-	return booking.ToResponse(), nil
+	return b.ToResponse(), nil
 }

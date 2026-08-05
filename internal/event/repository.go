@@ -1,16 +1,18 @@
 package event
 
-import "gorm.io/gorm"
-
 import (
+	"errors"
 	"ticketBooking/internal/utils/query"
+
+	"gorm.io/gorm"
 )
 
 type Repository interface {
 	Create(event *Event) error
-	 GetAll(p query.Params) ([]*Event, int64, error) 
+	GetAll(p query.Params) ([]*Event, int64, error) 
 	GetByID(eventId uint) (*Event, error)
 	Update(event *Event) error
+	DecrementTickets(eventID uint, quantity int) error  // নতুন
 }
 
 type repository struct {
@@ -62,4 +64,21 @@ func (r *repository) GetByID(eventId uint) (*Event, error) {
 
 func (r *repository) Update(event *Event) error {
 	return r.db.Save(event).Error
+}
+
+
+func (r *repository) DecrementTickets(eventID uint, quantity int) error {
+	res := r.db.Exec(`
+		UPDATE events
+		SET available_tickets = available_tickets - ?
+		WHERE id = ? AND available_tickets >= ?
+	`, quantity, eventID, quantity)
+
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return errors.New("Not enough tickets available")// event প্যাকেজে এই error রাখো, অথবা booking থেকে share করো
+	}
+	return nil
 }
