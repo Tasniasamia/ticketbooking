@@ -1,10 +1,10 @@
 package server
 
 import (
-	"ticketBooking/internal/domain/event"
-	"ticketBooking/internal/domain/language"
-	"ticketBooking/internal/domain/translation"
-	"ticketBooking/internal/domain/user"
+	"ticketBooking/internal/event"
+	"ticketBooking/internal/language"
+	"ticketBooking/internal/translation"
+	"ticketBooking/internal/user"
 
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"

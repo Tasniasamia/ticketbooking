@@ -1,12 +1,12 @@
 package config
 
 import (
-	"ticketBooking/internal/domain/event"
-	"ticketBooking/internal/domain/language"
-	"ticketBooking/internal/domain/translation"
-	"ticketBooking/internal/domain/user"
-
-	"gorm.io/gorm"
+	// "ticketBooking/internal/booking"
+	"ticketBooking/internal/event"
+	"ticketBooking/internal/language"
+	"ticketBooking/internal/translation"
+	"ticketBooking/internal/user"
+     "gorm.io/gorm"
 )
 
 func RunMigrations(db *gorm.DB) {
@@ -15,5 +15,6 @@ func RunMigrations(db *gorm.DB) {
 		&event.Event{},
 		&language.Language{},
 		&translation.Translation{},
+		// &booking.Booking{},
 	)
 }

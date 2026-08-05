@@ -1,4 +1,4 @@
-package config
+package config;
 
 import (
 	"log"
@@ -11,6 +11,7 @@ import (
 type Config struct {
 Dsn string ;
 Port string;
+JwtSecret string;
 }
 
 
@@ -26,6 +27,7 @@ func LoadConfig()Config {
 	return Config{
 		Dsn: os.Getenv("DATABASE_URL"),
 		Port: os.Getenv("PORT"),
+		JwtSecret: os.Getenv("JWTSECRET"),
 	}
 	
 	

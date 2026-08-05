@@ -1,4 +1,4 @@
-package main
+package main;
 
 import (
 	"ticketBooking/internal/config"
@@ -9,8 +9,8 @@ import (
 
 
 
-
 func main() {
+
 
  cfg:=config.LoadConfig();
  db:=config.ConnectDatabase(cfg);
