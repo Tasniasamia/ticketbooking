@@ -2,12 +2,13 @@ package language
 
 import (
 	"ticketBooking/internal/translation"
+	"ticketBooking/internal/config"
 
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"
 )
 
-func LanguageRegisterRoutes(e *echo.Group, db *gorm.DB) {
+func LanguageRegisterRoutes(e *echo.Group, db *gorm.DB, config config.Config) {
 	repo := NewRepository(db)
 	transRepo := translation.NewRepository(db)
 svc := NewService(repo, transRepo)

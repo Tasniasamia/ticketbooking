@@ -6,10 +6,12 @@ import (
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"
 	"ticketBooking/internal/middlewares"
+	"ticketBooking/internal/config"
+
 )
 
 
-func UserRegisterRoutes(e *echo.Group,db *gorm.DB){
+func UserRegisterRoutes(e *echo.Group,db *gorm.DB,config config.Config){
 	NewUserRepository:=NewUserRepository(db);
 	JWTService:=auth.NewJWTService("");
 

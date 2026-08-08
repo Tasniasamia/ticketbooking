@@ -37,7 +37,7 @@ func Start(cfg config.Config,db *gorm.DB) {
 
 	//router middleware
 	api:=e.Group("/api/v1");
-	RegisterAllRoutes(api, db)
+	RegisterAllRoutes(api, db, cfg)
 
 
    

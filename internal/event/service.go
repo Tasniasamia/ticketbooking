@@ -24,6 +24,8 @@ func (s *Service) CreateEvent(req *dto.CreateRequest) (*dto.RawResponse, error) 
 		TotalTickets:     req.TotalTickets,
 		AvailableTickets: req.TotalTickets,
 		Price:            req.Price,
+		EventImageURL:    req.EventImageURL,
+		EventImageId:     req.EventImageId,
 	}
 
 	if err := s.repo.Create(event); err != nil {

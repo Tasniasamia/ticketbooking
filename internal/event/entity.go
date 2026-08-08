@@ -17,6 +17,8 @@ type Event struct {
 	TotalTickets     int                  `json:"total_tickets" gorm:"not null"`
 	AvailableTickets int                  `json:"available_tickets" gorm:"not null"`
 	Price            int                  `json:"price" gorm:"not null"`
+	EventImageURL    string               `json:"event_url" gorm:"not null"`
+	EventImageId     int                  `json:"event_image_id" gorm:"not null"`
 }
 
 func (e *Event) ToResponse(lang string) *dto.Response {
@@ -30,6 +32,8 @@ func (e *Event) ToResponse(lang string) *dto.Response {
 		AvailableTickets: e.AvailableTickets,
 		Price:            e.Price,
 		CreatedAt:        e.CreatedAt.Format("2006-01-02 15:04:05"),
+		EventImageURL:    e.EventImageURL,
+		EventImageId:     e.EventImageId,
 	}
 }
 
@@ -44,5 +48,7 @@ func (e *Event) ToRawResponse() *dto.RawResponse {
 		AvailableTickets: e.AvailableTickets,
 		Price:            e.Price,
 		CreatedAt:        e.CreatedAt.Format("2006-01-02 15:04:05"),
+		EventImageURL:    e.EventImageURL,
+		EventImageId:     e.EventImageId,
 	}
 }

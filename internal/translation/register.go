@@ -3,9 +3,11 @@ package translation
 import (
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"
+	"ticketBooking/internal/config"
+
 )
 
-func TranslationRegisterRoutes(e *echo.Group, db *gorm.DB) {
+func TranslationRegisterRoutes(e *echo.Group, db *gorm.DB, config config.Config) {
 	repo := NewRepository(db)
 	svc := NewService(repo)
 	h := NewHandler(svc)

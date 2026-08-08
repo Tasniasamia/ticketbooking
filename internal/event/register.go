@@ -3,9 +3,10 @@ package event
 import (
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"
+	"ticketBooking/internal/config"
 )
 
-func EventRegisterRoutes(e *echo.Group, db *gorm.DB) {
+func EventRegisterRoutes(e *echo.Group, db *gorm.DB, config config.Config) {
 	NewUserRepository := NewRepository(db)
 
 	NewEventService := NewEventService(NewUserRepository)

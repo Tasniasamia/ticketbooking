@@ -16,6 +16,8 @@ type Response struct {
 	AvailableTickets int       `json:"available_tickets"`
 	Price            int       `json:"price"`
 	CreatedAt        string    `json:"created_at"`
+	EventImageURL    string    `json:"event_url"`
+	EventImageId     int       `json:"event_image_id"`
 }
 
 // admin / raw — পুরো multi-lang object
@@ -29,4 +31,6 @@ type RawResponse struct {
 	AvailableTickets int                  `json:"available_tickets"`
 	Price            int                  `json:"price"`
 	CreatedAt        string               `json:"created_at"`
+	EventImageURL    string               `json:"event_url"`
+	EventImageId     int                  `json:"event_image_id"`
 }
