@@ -13,7 +13,7 @@ import (
 
 func UserRegisterRoutes(e *echo.Group,db *gorm.DB,config config.Config){
 	NewUserRepository:=NewUserRepository(db);
-	JWTService:=auth.NewJWTService("");
+	JWTService:=auth.NewJWTService(config.JwtSecret);
 
 	NewUserService:=NewUserService(NewUserRepository,JWTService);
 	NewUserHandler:=NewHandler(NewUserService);

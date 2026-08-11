@@ -13,6 +13,7 @@ type Repository interface {
 	Update(lang *Language) error
 	Delete(id uint) error
 	ClearDefault() error
+	GetDefault() (*Language, error)
 }
 
 type repository struct {
@@ -78,4 +79,12 @@ func (r *repository) Delete(id uint) error {
 
 func (r *repository) ClearDefault() error {
 	return r.db.Model(&Language{}).Where("is_default = ?", true).Update("is_default", false).Error
+}
+func (r *repository) GetDefault() (*Language, error) {
+	var lang Language
+	err := r.db.Where("is_default = ? AND is_active = ?", true, true).First(&lang).Error
+	if err != nil {
+		return nil, err
+	}
+	return &lang, nil
 }

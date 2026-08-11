@@ -57,6 +57,7 @@ func (j *jwtService) GenerateToken(userId uint, name string, email string) (stri
 }
 
 func (j *jwtService) ValidateToken(tokenStr string) (*JwtClaims, error) {
+	fmt.Println("tokenStr is ", tokenStr);
 	token, err := jwt.ParseWithClaims(tokenStr, &JwtClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(j.secretKey), nil
 	})

@@ -120,3 +120,45 @@ func (h *handler) Delete(c *echo.Context) error {
 		Message: "Language deleted successfully",
 	})
 }
+
+func (h *handler) GetDefault(c *echo.Context) error {
+	res, err := h.service.GetDefault()
+	if err != nil {
+		return c.JSON(http.StatusNotFound, httpresponse.Error{
+			Success: false, StatusCode: http.StatusNotFound, Error: true,
+			ErrorMessage: "Default language not found", ErrorDetails: err.Error(),
+		})
+	}
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: http.StatusOK,
+		Message: "Default language fetched successfully", Data: res,
+	})
+}
+
+func (h *handler) SetDefault(c *echo.Context) error {
+	var req dto.SetDefaultRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: http.StatusBadRequest, Error: true,
+			ErrorMessage: "Invalid request body", ErrorDetails: err.Error(),
+		})
+	}
+	if req.Code == "" {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: http.StatusBadRequest, Error: true,
+			ErrorMessage: "code is required",
+		})
+	}
+
+	res, err := h.service.SetDefault(req.Code)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: http.StatusBadRequest, Error: true,
+			ErrorMessage: "Failed to set default language", ErrorDetails: err.Error(),
+		})
+	}
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: http.StatusOK,
+		Message: "Default language updated successfully", Data: res,
+	})
+}

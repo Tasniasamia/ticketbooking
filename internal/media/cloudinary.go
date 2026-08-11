@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"mime/multipart"
-	"os"
+
 	"path/filepath"
 	"strings"
 	"ticketBooking/internal/config"
@@ -20,9 +20,9 @@ type CloudinaryClient struct {
 }
 
 func NewCloudinaryClient(config config.Config) (*CloudinaryClient, error) {
-	cloudName := os.Getenv("CLOUDINARY_CLOUD_NAME")
-	apiKey := os.Getenv("CLOUDINARY_API_KEY")
-	apiSecret := os.Getenv("CLOUDINARY_API_SECRET")
+	cloudName := config.CloudinaryCloudName
+	apiKey := config.CloudinaryAPIKey
+	apiSecret := config.CloudinaryAPISecret
 
 	if cloudName == "" || apiKey == "" || apiSecret == "" {
 		return nil, fmt.Errorf("cloudinary credentials missing (CLOUDINARY_CLOUD_NAME / API_KEY / API_SECRET)")

@@ -17,3 +17,7 @@ type UpdateRequest struct {
 	IsDefault *bool  `json:"is_default"`
 	Flag      string `json:"flag"`
 }
+
+type SetDefaultRequest struct {
+	Code string `json:"code" validate:"required,min=2,max=5"`
+}

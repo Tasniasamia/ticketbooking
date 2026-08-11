@@ -136,3 +136,30 @@ func toResponse(l *Language) *dto.Response {
 		Flag:      l.Flag,
 	}
 }
+
+func (s *Service) GetDefault() (*dto.Response, error) {
+	lang, err := s.repo.GetDefault()
+	if err != nil {
+		return nil, err
+	}
+	return toResponse(lang), nil
+}
+
+// SetDefault — single click: clear old default, set new one by code
+func (s *Service) SetDefault(code string) (*dto.Response, error) {
+	lang, err := s.repo.GetByCode(code)
+	if err != nil {
+		return nil, errors.New("language not found")
+	}
+	if !lang.IsActive {
+		return nil, errors.New("cannot set inactive language as default")
+	}
+	if err := s.repo.ClearDefault(); err != nil {
+		return nil, err
+	}
+	lang.IsDefault = true
+	if err := s.repo.Update(lang); err != nil {
+		return nil, err
+	}
+	return toResponse(lang), nil
+}
