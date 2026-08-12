@@ -34,14 +34,14 @@ type CreatePaymentMethodRequest struct {
 	Name   string `json:"name" validate:"required,min=1,max=100"`
 	Code   string `json:"code" validate:"required,oneof=stripe sslcommerz"`
 	LogoURL   string `json:"logo_url" validate:"required"`
-	LogoID    string `json:"logo_id" validate:"required"`
+	LogoID    uint `json:"logo_id" validate:"required"`
 	Enable *bool  `json:"enable"`
 }
 
 type UpdatePaymentMethodRequest struct {
 	Name   *string `json:"name" validate:"omitempty,min=1,max=100"`
 	Code   *string `json:"code" validate:"omitempty,oneof=stripe sslcommerz"`
-	LogoUrl   *string `json:"logo_url" validate:"omitempty"`
+	LogoURL   *string `json:"logo_url" validate:"omitempty"`
 	LogoID    *string `json:"logo_id" validate:"omitempty"`
 	Enable *bool   `json:"enable"`
 }
