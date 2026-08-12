@@ -5,7 +5,8 @@ import (
 	"ticketBooking/internal/event"
 	"ticketBooking/internal/language"
 	"ticketBooking/internal/media"
-	
+	"ticketBooking/internal/settings"
+
 	"ticketBooking/internal/translation"
 	"ticketBooking/internal/user"
 
@@ -20,6 +21,7 @@ func RunMigrations(db *gorm.DB) {
 		&translation.Translation{},
 		&media.Media{},
 		&currency.Currency{},
+		&settings.Setting{},
 
 	)
 }
