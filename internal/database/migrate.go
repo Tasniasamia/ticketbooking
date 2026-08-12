@@ -1,10 +1,12 @@
 package database
 
 import (
+	"ticketBooking/internal/booking"
 	"ticketBooking/internal/currency"
 	"ticketBooking/internal/event"
 	"ticketBooking/internal/language"
 	"ticketBooking/internal/media"
+	"ticketBooking/internal/payment"
 	"ticketBooking/internal/settings"
 
 	"ticketBooking/internal/translation"
@@ -22,6 +24,8 @@ func RunMigrations(db *gorm.DB) {
 		&media.Media{},
 		&currency.Currency{},
 		&settings.Setting{},
+		&payment.Payment{},	
+		&booking.Booking{},
 
 	)
 }

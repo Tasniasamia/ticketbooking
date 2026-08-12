@@ -3,10 +3,10 @@ package dto
 type BookingStatus string
 
 const (
+	BookingPending   BookingStatus = "pending"
 	BookingConfirmed BookingStatus = "confirmed"
 	BookingCancelled BookingStatus = "cancelled"
 )
-
 
 type Response struct {
 	ID          uint          `json:"id"`
@@ -18,4 +18,3 @@ type Response struct {
 	BookingCode string        `json:"booking_code"`
 	CreatedAt   string        `json:"created_at"`
 }
-

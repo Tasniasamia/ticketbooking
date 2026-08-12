@@ -9,6 +9,8 @@ import (
 	"ticketBooking/internal/settings"
 	"ticketBooking/internal/translation"
 	"ticketBooking/internal/user"
+	"ticketBooking/internal/payment"
+	"ticketBooking/internal/booking"
 
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"
@@ -25,6 +27,8 @@ func RegisterAllRoutes(api *echo.Group, db *gorm.DB, config config.Config) {
 		media.MediaRegisterRoutes,
 		currency.CurrencyRegisterRoutes,
 		settings.SettingsRegisterRoutes,
+		payment.PaymentRegisterRoutes,
+		booking.BookingRegisterRoutes,
 	}
 
 	for _, register := range registrars {

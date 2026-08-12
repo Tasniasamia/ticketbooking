@@ -2,6 +2,7 @@ package booking
 
 import (
 	"errors"
+	"ticketBooking/internal/booking/dto"
 
 	"gorm.io/gorm"
 )
@@ -18,15 +19,12 @@ type Repository interface {
 	GetByID(bookingID uint) (*Booking, error)
 	GetByUserID(userID uint) ([]Booking, error)
 	Update(booking *Booking) error
+	UpdateStatus(bookingID uint, status dto.BookingStatus) error
 }
 
-type repository struct {
-	db *gorm.DB
-}
+type repository struct{ db *gorm.DB }
 
-func NewRepository(db *gorm.DB) Repository {
-	return &repository{db: db}
-}
+func NewRepository(db *gorm.DB) Repository { return &repository{db: db} }
 
 func (r *repository) Create(booking *Booking) error {
 	return r.db.Create(booking).Error
@@ -51,4 +49,6 @@ func (r *repository) Update(booking *Booking) error {
 	return r.db.Save(booking).Error
 }
 
-
+func (r *repository) UpdateStatus(bookingID uint, status dto.BookingStatus) error {
+	return r.db.Model(&Booking{}).Where("id = ?", bookingID).Update("status", status).Error
+}

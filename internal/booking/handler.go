@@ -2,82 +2,82 @@ package booking
 
 import (
 	"net/http"
-
+	"strconv"
 	"ticketBooking/internal/booking/dto"
 	"ticketBooking/internal/httpresponse"
-
 	"github.com/labstack/echo/v5"
 )
 
-type Handler struct {
-	svc *service
-}
+type Handler struct{ svc Service }
 
-func NewHandler(svc *service) *Handler {
-	return &Handler{svc: svc}
-}
+func NewHandler(svc Service) *Handler { return &Handler{svc: svc} }
 
 func (h *Handler) CreateBooking(c *echo.Context) error {
-
 	userID, ok := c.Get("user_id").(uint)
 	if !ok {
 		return c.JSON(http.StatusUnauthorized, httpresponse.Error{
-			Success:      false,
-			StatusCode:   http.StatusUnauthorized,
-			Error:        true,
-			ErrorMessage: "unauthorized",
-			ErrorDetails: "User not found",
+			Success: false, StatusCode: 401, Error: true, ErrorMessage: "unauthorized",
 		})
 	}
-
 	var req dto.CreateRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, httpresponse.Error{
-			Success:      false,
-			StatusCode:   http.StatusBadRequest,
-			Error:        true,
-			ErrorMessage: "invalid request body",
-			ErrorDetails: err.Error(),
+			Success: false, StatusCode: 400, Error: true, ErrorMessage: "invalid request body", ErrorDetails: err.Error(),
 		})
 	}
-
-	if req.EventID == 0 || req.Quantity < 1 {
+	if err := c.Validate(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, httpresponse.Error{
-			Success:      false,
-			StatusCode:   http.StatusBadRequest,
-			Error:        true,
-			ErrorMessage: "event_id and quantity are required",
-			ErrorDetails: "event_id must be greater than 0 and quantity must be at least 1",
+			Success: false, StatusCode: 400, Error: true, ErrorMessage: "validation failed", ErrorDetails: err.Error(),
 		})
 	}
-
 	res, err := h.svc.CreateBooking(userID, req)
 	if err != nil {
-		switch err {
-		case ErrNotEnoughTickets:
+		if err == ErrNotEnoughTickets {
 			return c.JSON(http.StatusBadRequest, httpresponse.Error{
-				Success:      false,
-				StatusCode:   http.StatusBadRequest,
-				Error:        true,
-				ErrorMessage: err.Error(),
-				ErrorDetails: "Not enough tickets available",
-			})
-		default:
-			return c.JSON(http.StatusInternalServerError, httpresponse.Error{
-				Success:      false,
-				StatusCode:   http.StatusInternalServerError,
-				Error:        true,
-				ErrorMessage: err.Error(),
-				ErrorDetails: "Failed to create booking",
+				Success: false, StatusCode: 400, Error: true, ErrorMessage: err.Error(),
 			})
 		}
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
+			Success: false, StatusCode: 500, Error: true, ErrorMessage: err.Error(),
+		})
 	}
-
 	return c.JSON(http.StatusCreated, httpresponse.Success{
-		Success:    true,
-		StatusCode: http.StatusCreated,
-		Message:    "Ticket Booking Sucessfully",
-		Data:       res,
+		Success: true, StatusCode: 201, Message: "Ticket booked successfully", Data: res,
 	})
+}
 
+func (h *Handler) GetMyBookings(c *echo.Context) error {
+	userID, ok := c.Get("user_id").(uint)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, httpresponse.Error{
+			Success: false, StatusCode: 401, Error: true, ErrorMessage: "unauthorized",
+		})
+	}
+	res, err := h.svc.GetByUserID(userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
+			Success: false, StatusCode: 500, Error: true, ErrorMessage: err.Error(),
+		})
+	}
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: 200, Message: "Bookings fetched", Data: res,
+	})
+}
+
+func (h *Handler) GetByID(c *echo.Context) error {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: 400, Error: true, ErrorMessage: "invalid booking id",
+		})
+	}
+	res, err := h.svc.GetByID(uint(id))
+	if err != nil {
+		return c.JSON(http.StatusNotFound, httpresponse.Error{
+			Success: false, StatusCode: 404, Error: true, ErrorMessage: "booking not found",
+		})
+	}
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: 200, Message: "Booking fetched", Data: res,
+	})
 }
