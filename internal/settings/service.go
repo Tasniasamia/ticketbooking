@@ -40,6 +40,7 @@ func (s *service) Upsert(req *dto.UpsertRequest) (*dto.Response, error) {
 	if req.StripeSuccessURL != nil { st.StripeSuccessURL = *req.StripeSuccessURL }
 	if req.StripeFailedURL != nil { st.StripeFailedURL = *req.StripeFailedURL }
 	if req.StripeCancelURL != nil { st.StripeCancelURL = *req.StripeCancelURL }
+	if req.StripeWebhookSecret != nil { st.StripeWebhookSecret = *req.StripeWebhookSecret }
 	if err := s.repo.Upsert(st); err != nil { return nil, err }
 	fresh, err := s.repo.Get()
 	if err != nil { return nil, err }

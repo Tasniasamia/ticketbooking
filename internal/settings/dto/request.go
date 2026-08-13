@@ -21,4 +21,5 @@ type UpsertRequest struct {
 	StripeSuccessURL *string `json:"stripe_success_url"`
 	StripeFailedURL *string `json:"stripe_failed_url"`
 	StripeCancelURL *string `json:"stripe_cancel_url"`
+	StripeWebhookSecret *string `json:"stripe_webhook_secret"`
 }

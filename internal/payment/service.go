@@ -49,7 +49,7 @@ type service struct {
 	eventRepo     event.Repository
 	settingsSvc   settings.Service
 	currencySvc   currency.Service
-	webhookSecret string
+	
 }
 
 func NewService(pr Repository, br booking.Repository, er event.Repository, ss settings.Service, cs currency.Service) Service {
@@ -85,9 +85,7 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 	if currencyCode == "" {
 		currencyCode = "BDT"
 	}
-	// if setting.CurrencyCode != "" {
-	// 	currencyCode = setting.CurrencyCode
-	// }
+
 	if err := s.eventRepo.DecrementTickets(req.EventID, req.Quantity); err != nil {
 		return nil, booking.ErrNotEnoughTickets
 	}
@@ -225,11 +223,17 @@ func (s *service) rollback(b *booking.Booking, eventID uint, qty int) {
 //   - charge.succeeded
 //   - charge.failed
 //   - charge.refunded
+
+
 func (s *service) HandleStripeWebhook(payload []byte, signature string) error {
 	var event stripe.Event
 	var err error
-	if s.webhookSecret != "" {
-		event, err = webhook.ConstructEvent(payload, signature, s.webhookSecret)
+	setting, err := s.settingsSvc.GetRaw()
+	if err != nil {
+		return ErrSettingsNotFound
+	}
+	if setting.StripeWebhookSecret != "" {
+		event, err = webhook.ConstructEvent(payload, signature, setting.StripeWebhookSecret)
 		if err != nil {
 			return err
 		}
@@ -439,6 +443,7 @@ func (s *service) HandleSSLCommerzIPN(ipn dto.SSLCommerzIPN) error {
 	}
 	return s.paymentRepo.Update(p)
 }
+
 
 func (s *service) GetByID(id uint) (*dto.PaymentResponse, error) {
 	p, err := s.paymentRepo.GetByID(id)

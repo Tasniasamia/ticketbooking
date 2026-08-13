@@ -30,8 +30,7 @@ type Setting struct {
 	SocialMediaLink SocialMediaLinks `gorm:"type:jsonb;default:'[]'"`
 	
 	SslCommerzeStoreID, SslCommerzeStorePassword, SslCommerzeSuccessURL, SslCommerzeFailedURL, SslCommerzeCancelURL string
-	StripePublishableKey, StripeSecretKey, StripeSuccessURL, StripeFailedURL, StripeCancelURL string
-	
+	StripePublishableKey, StripeSecretKey, StripeSuccessURL, StripeFailedURL, StripeCancelURL, StripeWebhookSecret string
 }
 func (Setting) TableName() string { return "settings" }
 func (s *Setting) ToResponse() *dto.Response {
@@ -49,5 +48,6 @@ func (s *Setting) ToResponse() *dto.Response {
 		StripeSuccessURL: s.StripeSuccessURL, StripeFailedURL: s.StripeFailedURL,
 		StripeCancelURL: s.StripeCancelURL,
 		CreatedAt: s.CreatedAt.Format("2006-01-02 15:04:05"), UpdatedAt: s.UpdatedAt.Format("2006-01-02 15:04:05"),
+		StripeWebhookSecret: s.StripeWebhookSecret,
 	}
 }
