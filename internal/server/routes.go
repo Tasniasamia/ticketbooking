@@ -29,6 +29,7 @@ func RegisterAllRoutes(api *echo.Group, db *gorm.DB, config config.Config) {
 		settings.SettingsRegisterRoutes,
 		payment.PaymentRegisterRoutes,
 		booking.BookingRegisterRoutes,
+		
 	}
 
 	for _, register := range registrars {

@@ -8,7 +8,7 @@ package dto
 //	model_id    → optional related entity primary key
 //	folder      → optional Cloudinary folder override
 type UploadRequest struct {
-	ModelName string `form:"model_name" validate:"required,oneof=event user product booking category banner"`
+	ModelName string `form:"model_name" validate:"required,oneof=event user product booking category banner payments"`
 	ModelID   *uint  `form:"model_id"`
 	Folder    string `form:"folder"`
 }

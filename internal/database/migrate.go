@@ -26,6 +26,6 @@ func RunMigrations(db *gorm.DB) {
 		&settings.Setting{},
 		&payment.Payment{},	
 		&booking.Booking{},
-
+        &payment.PaymentMethod{},
 	)
 }

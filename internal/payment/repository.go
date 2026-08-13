@@ -91,7 +91,7 @@ func (r *repository) UpdateMethod(m *PaymentMethod) error {
 }
 
 func (r *repository) DeleteMethod(id uint) error {
-	res := r.db.Delete(&PaymentMethod{}, id)
+	res := r.db.Unscoped().Delete(&PaymentMethod{}, id)
 	if res.Error != nil {
 		return res.Error
 	}

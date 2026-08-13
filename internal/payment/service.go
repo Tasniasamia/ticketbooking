@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -228,12 +229,13 @@ func (s *service) rollback(b *booking.Booking, eventID uint, qty int) {
 func (s *service) HandleStripeWebhook(payload []byte, signature string) error {
 	var event stripe.Event
 	var err error
+	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
 	setting, err := s.settingsSvc.GetRaw()
 	if err != nil {
 		return ErrSettingsNotFound
 	}
 	if setting.StripeWebhookSecret != "" {
-		event, err = webhook.ConstructEvent(payload, signature, setting.StripeWebhookSecret)
+		event, err = webhook.ConstructEvent(payload, signature,webhookSecret )
 		if err != nil {
 			return err
 		}
