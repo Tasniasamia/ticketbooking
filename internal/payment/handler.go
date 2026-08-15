@@ -1,6 +1,7 @@
 package payment
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -78,7 +79,16 @@ func (h *handler) StripeWebhook(c *echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "cannot read body"})
 	}
-	if err := h.service.HandleStripeWebhook(payload, c.Request().Header.Get("Stripe-Signature")); err != nil {
+
+	sig := c.Request().Header.Get("Stripe-Signature")
+	
+	// Debug log
+	fmt.Println("=== WEBHOOK DEBUG ===")
+	fmt.Println("Signature:", sig)
+	fmt.Println("Payload length:", len(payload))
+	
+	if err := h.service.HandleStripeWebhook(payload, sig); err != nil {
+		fmt.Println("Webhook Error:", err.Error())   // ← এই লাইনটা খুব জরুরি
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 	return c.JSON(http.StatusOK, map[string]string{"received": "true"})
@@ -96,6 +106,31 @@ func (h *handler) SSLCommerzIPN(c *echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
 	}
 	return c.String(http.StatusOK, "VALID")
+}
+func (h *handler) VerifySSLCommerzSession(c *echo.Context) error {
+	tranID := c.QueryParam("tran_id")
+	status := c.QueryParam("status")
+
+	if tranID == "" {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: 400, Error: true,
+			ErrorMessage: "tran_id is required",
+		})
+	}
+
+	res, err := h.service.VerifySSLCommerzSession(tranID, status)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: 400, Error: true,
+			ErrorMessage: err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: 200,
+		Message: "Payment verified",
+		Data:    res,
+	})
 }
 
 // ---- Payment Method handlers ----
@@ -184,4 +219,28 @@ func (h *handler) ListPaymentMethods(c *echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, httpresponse.Error{Success: false, StatusCode: 500, Error: true, ErrorMessage: err.Error()})
 	}
 	return c.JSON(http.StatusOK, httpresponse.Success{Success: true, StatusCode: 200, Message: "Payment methods fetched", Data: res})
+}
+
+func (h *handler) VerifyStripeSession(c *echo.Context) error {
+	sessionID := c.QueryParam("session_id")
+	if sessionID == "" {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: 400, Error: true,
+			ErrorMessage: "session_id is required",
+		})
+	}
+
+	res, err := h.service.VerifyStripeSession(sessionID)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: 400, Error: true,
+			ErrorMessage: err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: 200,
+		Message: "Payment verified",
+		Data:    res,
+	})
 }

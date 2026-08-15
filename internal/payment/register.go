@@ -31,7 +31,9 @@ func PaymentRegisterRoutes(api *echo.Group, db *gorm.DB, cfg config.Config) {
 	g.GET("", h.GetMyPayments, middleware.AuthMiddleware(jwtSvc))
 	g.GET("/:id", h.GetPayment, middleware.AuthMiddleware(jwtSvc))
 	g.GET("/transaction/:transaction_id", h.GetByTransactionID, middleware.AuthMiddleware(jwtSvc))
-
+    g.GET("/verify-session", h.VerifyStripeSession);
+	// register.go
+    g.GET("/verify-sslcommerz", h.VerifySSLCommerzSession)
 	// Webhooks (no auth — verified by signature / IPN body)
 	g.POST("/webhook/stripe", h.StripeWebhook)
 	g.POST("/webhook/sslcommerz", h.SSLCommerzIPN)

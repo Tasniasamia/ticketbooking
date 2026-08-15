@@ -15,7 +15,7 @@ import (
 	"ticketBooking/internal/event"
 	"ticketBooking/internal/payment/dto"
 	"ticketBooking/internal/settings"
-
+    "github.com/stripe/stripe-go/v82/checkout/session"
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/webhook"
@@ -35,7 +35,8 @@ type Service interface {
 	GetByID(id uint) (*dto.PaymentResponse, error)
 	GetByTransactionID(tranID string) (*dto.PaymentResponse, error)
 	GetByUserID(userID uint) ([]*dto.PaymentResponse, error)
-
+    VerifyStripeSession(sessionID string) (*dto.PaymentResponse, error)
+	VerifySSLCommerzSession(tranID,status string) (*dto.PaymentResponse, error)
 	// Payment methods
 	CreatePaymentMethod(req dto.CreatePaymentMethodRequest) (*dto.PaymentMethodResponse, error)
 	UpdatePaymentMethod(id uint, req dto.UpdatePaymentMethodRequest) (*dto.PaymentMethodResponse, error)
@@ -120,35 +121,48 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 
 	var checkoutURL, sessionID string
 	switch method {
-	case MethodStripe:
-		// if !setting.StripeEnable {
-		// 	s.rollback(b, req.EventID, req.Quantity)
-		// 	return nil, ErrGatewayDisabled
-		// }
-		if setting.StripeSecretKey == "" {
-			s.rollback(b, req.EventID, req.Quantity)
-			return nil, ErrMissingGatewayKey
+case MethodStripe:
+	if setting.StripeSecretKey == "" {
+		s.rollback(b, req.EventID, req.Quantity)
+		return nil, ErrMissingGatewayKey
+	}
+
+	successURL := setting.StripeSuccessURL
+	cancelURL := setting.StripeCancelURL
+
+	if successURL == "" {
+		successURL = setting.ClientSideURL + "/payment/success"
+	}
+	// session_id না থাকলে যোগ করে দাও
+	if !strings.Contains(successURL, "{CHECKOUT_SESSION_ID}") {
+		if strings.Contains(successURL, "?") {
+			successURL += "&session_id={CHECKOUT_SESSION_ID}"
+		} else {
+			successURL += "?session_id={CHECKOUT_SESSION_ID}"
 		}
-		successURL := setting.StripeSuccessURL
-		cancelURL := setting.StripeCancelURL
-		if successURL == "" {
-			successURL = setting.ClientSideURL + "/payment/success?session_id={CHECKOUT_SESSION_ID}"
-		}
-		if cancelURL == "" {
-			cancelURL = setting.ClientSideURL + "/payment/cancel"
-		}
-		sc := newStripeClient(setting.StripeSecretKey)
-		sess, err := sc.CreateCheckoutSession(stripeSessionParams{
-			Amount: int64(eventData.Price * 100), Currency: strings.ToLower(currencyCode),
-			ProductName: reason, Quantity: int64(req.Quantity),
-			SuccessURL: successURL, CancelURL: cancelURL, ClientRef: tranID,
-			CustomerEmail: req.CustomerEmail,
-			Metadata: map[string]string{
-				"payment_id":     strconv.FormatUint(uint64(p.ID), 10),
-				"booking_id":     strconv.FormatUint(uint64(b.ID), 10),
-				"transaction_id": tranID,
-			},
-		})
+	}
+
+	if cancelURL == "" {
+		cancelURL = setting.ClientSideURL + "/payment/cancel"
+	}
+
+	sc := newStripeClient(setting.StripeSecretKey)
+	sess, err := sc.CreateCheckoutSession(stripeSessionParams{
+		Amount:        int64(eventData.Price * 100),
+		Currency:      strings.ToLower(currencyCode),
+		ProductName:   reason,
+		Quantity:      int64(req.Quantity),
+		SuccessURL:    successURL,
+		CancelURL:     cancelURL,
+		ClientRef:     tranID,
+		CustomerEmail: req.CustomerEmail,
+		Metadata: map[string]string{
+			"payment_id":     strconv.FormatUint(uint64(p.ID), 10),
+			"booking_id":     strconv.FormatUint(uint64(b.ID), 10),
+			"transaction_id": tranID,
+		},
+	})
+	// ... বাকি অংশ একই থাকবে
 		if err != nil {
 			s.rollback(b, req.EventID, req.Quantity)
 			return nil, err
@@ -157,45 +171,89 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 		p.GatewaySessionID, p.CheckoutURL = sess.ID, sess.URL
 
 	case MethodSSLCommerz:
-		// if !setting.SslCommerzeEnable {
-		// 	s.rollback(b, req.EventID, req.Quantity)
-		// 	return nil, ErrGatewayDisabled
-		// }
-		if setting.SslCommerzeStoreID == "" || setting.SslCommerzeStorePassword == "" {
-			s.rollback(b, req.EventID, req.Quantity)
-			return nil, ErrMissingGatewayKey
+	// Currency must be BDT for SSLCommerz
+	if strings.ToUpper(currencyCode) != "BDT" {
+		s.rollback(b, req.EventID, req.Quantity)
+		return nil, errors.New("SSLCommerz only supports BDT currency")
+	}
+
+	if setting.SslCommerzeStoreID == "" || setting.SslCommerzeStorePassword == "" {
+		s.rollback(b, req.EventID, req.Quantity)
+		return nil, ErrMissingGatewayKey
+	}
+
+	successURL := setting.SslCommerzeSuccessURL
+	failURL := setting.SslCommerzeFailedURL
+	cancelURL := setting.SslCommerzeCancelURL
+
+	if successURL == "" {
+		successURL = setting.ClientSideURL + "/payment/success"
+	}
+	if failURL == "" {
+		failURL = setting.ClientSideURL + "/payment/failed"
+	}
+	if cancelURL == "" {
+		cancelURL = setting.ClientSideURL + "/payment/cancel"
+	}
+
+	// tran_id যোগ করে দাও (val_id ও status এখনো নেই)
+	if !strings.Contains(successURL, "tran_id=") {
+		if strings.Contains(successURL, "?") {
+			successURL += "&tran_id=" + tranID
+		} else {
+			successURL += "?tran_id=" + tranID
 		}
-		successURL := setting.SslCommerzeSuccessURL
-		failURL := setting.SslCommerzeFailedURL
-		cancelURL := setting.SslCommerzeCancelURL
-		if successURL == "" {
-			successURL = setting.ClientSideURL + "/payment/success"
+	}
+	if !strings.Contains(failURL, "tran_id=") {
+		if strings.Contains(failURL, "?") {
+			failURL += "&tran_id=" + tranID
+		} else {
+			failURL += "?tran_id=" + tranID
 		}
-		if failURL == "" {
-			failURL = setting.ClientSideURL + "/payment/failed"
+	}
+	if !strings.Contains(cancelURL, "tran_id=") {
+		if strings.Contains(cancelURL, "?") {
+			cancelURL += "&tran_id=" + tranID
+		} else {
+			cancelURL += "?tran_id=" + tranID
 		}
-		if cancelURL == "" {
-			cancelURL = setting.ClientSideURL + "/payment/cancel"
-		}
-		ipnURL := strings.TrimRight(setting.ServerSideURL, "/") + "/api/v1/payments/webhook/sslcommerz"
-		client := newSSLCommerzClient(setting.SslCommerzeStoreID, setting.SslCommerzeStorePassword, true)
-		initRes, err := client.Initiate(sslInitParams{
-			TotalAmount: fmt.Sprintf("%.2f", totalPrice), Currency: currencyCode, TranID: tranID,
-			SuccessURL: successURL, FailURL: failURL, CancelURL: cancelURL, IPNURL: ipnURL,
-			CusName: req.CustomerName, CusEmail: req.CustomerEmail, CusPhone: req.CustomerPhoneNumber,
-			CusAdd1: req.CustomerAddress, CusCity: req.Country, CusCountry: req.Country, CusPostcode: req.Postcode,
-			ProductName: reason, ProductCategory: "ticket", ProductProfile: "general",
-			ValueA: strconv.FormatUint(uint64(b.ID), 10),
-			ValueB: strconv.FormatUint(uint64(p.ID), 10),
-			ValueC: strconv.FormatUint(uint64(userID), 10),
-			ValueD: strconv.FormatUint(uint64(req.EventID), 10),
-		})
-		if err != nil {
-			s.rollback(b, req.EventID, req.Quantity)
-			return nil, err
-		}
-		checkoutURL, sessionID = initRes.GatewayPageURL, initRes.SessionKey
-		p.GatewaySessionID, p.CheckoutURL = initRes.SessionKey, checkoutURL
+	}
+
+	ipnURL := strings.TrimRight(setting.ServerSideURL, "/") + "/api/v1/payments/webhook/sslcommerz"
+	client := newSSLCommerzClient(setting.SslCommerzeStoreID, setting.SslCommerzeStorePassword, true)
+
+	initRes, err := client.Initiate(sslInitParams{
+		TotalAmount:     fmt.Sprintf("%.2f", totalPrice),
+		Currency:        currencyCode,
+		TranID:          tranID,
+		SuccessURL:      successURL,
+		FailURL:         failURL,
+		CancelURL:       cancelURL,
+		IPNURL:          ipnURL,
+		CusName:         req.CustomerName,
+		CusEmail:        req.CustomerEmail,
+		CusPhone:        req.CustomerPhoneNumber,
+		CusAdd1:         req.CustomerAddress,
+		CusCity:         req.Country,
+		CusCountry:      req.Country,
+		CusPostcode:     req.Postcode,
+		ProductName:     reason,
+		ProductCategory: "ticket",
+		ProductProfile:  "general",
+		ValueA:          strconv.FormatUint(uint64(b.ID), 10),
+		ValueB:          strconv.FormatUint(uint64(p.ID), 10),
+		ValueC:          strconv.FormatUint(uint64(userID), 10),
+		ValueD:          strconv.FormatUint(uint64(req.EventID), 10),
+	})
+	if err != nil {
+	fmt.Printf("SSLCommerz Initiate Error: %+v\n", err)   // ← এই লাইন যোগ করুন
+	s.rollback(b, req.EventID, req.Quantity)
+	return nil, err
+
+	}
+
+	checkoutURL, sessionID = initRes.GatewayPageURL, initRes.SessionKey
+	p.GatewaySessionID, p.CheckoutURL = initRes.SessionKey, checkoutURL
 	}
 
 	_ = s.paymentRepo.Update(p)
@@ -227,20 +285,43 @@ func (s *service) rollback(b *booking.Booking, eventID uint, qty int) {
 
 
 func (s *service) HandleStripeWebhook(payload []byte, signature string) error {
-	var event stripe.Event
+var event stripe.Event
 	var err error
-	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
+
 	setting, err := s.settingsSvc.GetRaw()
 	if err != nil {
 		return ErrSettingsNotFound
 	}
-	if setting.StripeWebhookSecret != "" {
-		event, err = webhook.ConstructEvent(payload, signature,webhookSecret )
+
+	webhookSecret := setting.StripeWebhookSecret
+	if webhookSecret == "" {
+		webhookSecret = os.Getenv("STRIPE_WEBHOOK_SECRET")
+	}
+		// event, err = webhook.ConstructEventWithOptions(
+		// 	payload,
+		// 	signature,
+		// 	webhookSecret,
+		// 	webhook.ConstructEventOptions{
+		// 		IgnoreAPIVersionMismatch: true,
+		// 	},
+		// )
+	if webhookSecret != "" {
+			event, err = webhook.ConstructEventWithOptions(
+			payload,
+			signature,
+			webhookSecret,
+			webhook.ConstructEventOptions{
+				IgnoreAPIVersionMismatch: true,
+			},
+		)
 		if err != nil {
+			// s.eventRepo.IncrementTickets(s.bookingRepo.)
+			return fmt.Errorf("webhook signature verification failed: %w", err)
+		}
+	} else {
+		if err := json.Unmarshal(payload, &event); err != nil {
 			return err
 		}
-	} else if err := json.Unmarshal(payload, &event); err != nil {
-		return err
 	}
 
 	switch event.Type {
@@ -488,9 +569,98 @@ func (s *service) GetByUserID(userID uint) ([]*dto.PaymentResponse, error) {
 }
 
 
+func (s *service) VerifyStripeSession(sessionID string) (*dto.PaymentResponse, error) {
+	setting, err := s.settingsSvc.GetRaw()
+	if err != nil {
+		return nil, ErrSettingsNotFound
+	}
+	if setting.StripeSecretKey == "" {
+		return nil, ErrMissingGatewayKey
+	}
 
+	stripe.Key = setting.StripeSecretKey
+	sess, err := session.Get(sessionID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch stripe session: %w", err)
+	}
 
+	// Session paid হলে status update করো
+	if sess.PaymentStatus == stripe.CheckoutSessionPaymentStatusPaid ||
+		sess.Status == stripe.CheckoutSessionStatusComplete {
 
+		if err := s.handleStripeSessionSuccess(sess); err != nil {
+			return nil, err
+		}
+	}
+
+	// Updated payment return করো
+	p, err := s.paymentRepo.GetBySessionID(sessionID)
+	if err != nil {
+		// Fallback: client_reference_id দিয়ে খুঁজে দেখো
+		if sess.ClientReferenceID != "" {
+			p, err = s.paymentRepo.GetByTransactionID(sess.ClientReferenceID)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	code := ""
+	if b, e := s.bookingRepo.GetByID(p.BookingID); e == nil {
+		code = b.BookingCode
+	}
+	return p.ToResponse(code), nil
+}
+
+func (s *service) VerifySSLCommerzSession(tranID,status string) (*dto.PaymentResponse, error) {
+	p, err := s.paymentRepo.GetByTransactionID(tranID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Already success হলে আর কিছু করার দরকার নেই
+	if p.Status == StatusSuccess {
+		code := ""
+		if b, e := s.bookingRepo.GetByID(p.BookingID); e == nil {
+			code = b.BookingCode
+		}
+		return p.ToResponse(code), nil
+	}
+
+	// setting, err := s.settingsSvc.GetRaw()
+	// if err != nil {
+	// 	return nil, ErrSettingsNotFound
+	// }
+
+	finalStatus := strings.ToUpper(strings.TrimSpace(status))
+	// StatusSuccess   PaymentStatus = "success"
+	// StatusFailed    PaymentStatus = "failed"
+	// StatusCancelled PaymentStatus = ""
+	
+
+	switch finalStatus {
+	case "success":
+		now := time.Now()
+		p.Status = StatusSuccess
+		p.PaidAt = &now
+		_ = s.paymentRepo.Update(p)
+		_ = s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingConfirmed)
+
+	case "failed":
+		_ = s.markFailedByTranID(tranID, StatusFailed)
+
+	case "cancelled", "canceled":
+		_ = s.markFailedByTranID(tranID, StatusCancelled)
+	}
+
+	// Updated payment রিটার্ন করো
+	p, _ = s.paymentRepo.GetByTransactionID(tranID)
+	code := ""
+	if b, e := s.bookingRepo.GetByID(p.BookingID); e == nil {
+		code = b.BookingCode
+	}
+	return p.ToResponse(code), nil
+}
 
 
 
