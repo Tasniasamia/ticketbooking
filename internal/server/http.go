@@ -3,7 +3,6 @@ package server;
 import (
 	"ticketBooking/internal/config"
 	"ticketBooking/internal/user"
-
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
@@ -28,6 +27,10 @@ func Start(cfg config.Config,db *gorm.DB) {
     //server initiate
 	e := echo.New()
 	e.Validator = &CustomValidator{validator: validator.New()}
+   
+	
+    
+
 
     // server buildin middleware
 	e.Use(middleware.RequestLogger())

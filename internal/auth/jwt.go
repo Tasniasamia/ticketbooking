@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"ticketBooking/internal/user/dto"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -16,11 +17,13 @@ type JwtClaims struct{
 	UserID uint `json:"user_id"`
 	Name string `json:"name"`
 	Email string `json:"email"`
+	Role dto.RoleType `json:"role"`
+	IsVerified bool `json:"is_verified"`
 	jwt.RegisteredClaims
 }
 
 type JwtService interface{
-	GenerateToken(userId uint, name string, email string) (string, error);
+	GenerateToken(userId uint, name string, email string, role dto.RoleType, isVerified bool) (string, error);
 	ValidateToken(tokenStr string) (*JwtClaims, error)
 }
 
@@ -41,11 +44,13 @@ func NewJWTService(secretKey string) JwtService {
 	}
 }
 
-func (j *jwtService) GenerateToken(userId uint, name string, email string) (string, error) {
+func (j *jwtService) GenerateToken(userId uint, name string, email string, role dto.RoleType, isVerified bool) (string, error) {
 	claims := JwtClaims{
 		UserID: userId,
 		Name:   name,
 		Email:  email,
+		Role:   role,
+		IsVerified: isVerified,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.tokenDuration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

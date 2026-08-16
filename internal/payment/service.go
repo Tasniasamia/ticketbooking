@@ -271,17 +271,7 @@ func (s *service) rollback(b *booking.Booking, eventID uint, qty int) {
 	_ = s.eventRepo.IncrementTickets(eventID, qty)
 }
 
-// HandleStripeWebhook processes events forwarded by Stripe CLI / dashboard webhooks.
-// Supported (local + production friendly):
-//   - checkout.session.completed
-//   - checkout.session.expired
-//   - checkout.session.async_payment_failed
-//   - checkout.session.async_payment_succeeded
-//   - payment_intent.succeeded
-//   - payment_intent.payment_failed
-//   - charge.succeeded
-//   - charge.failed
-//   - charge.refunded
+
 
 
 func (s *service) HandleStripeWebhook(payload []byte, signature string) error {

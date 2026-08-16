@@ -3,19 +3,19 @@ package email
 import (
 	"fmt"
 	"net/smtp"
-	"os"
-	"strings"
-
+	
+    "ticketBooking/internal/config"
 	"github.com/resend/resend-go/v3"
 )
 
 type EmailService struct {
-	env string
+	config config.Config
+	env    string
 }
 
-func NewEmailService() *EmailService {
+func NewEmailService(cfg config.Config) *EmailService {
 	return &EmailService{
-		env: strings.ToLower(os.Getenv("APP_ENV")),
+		config: cfg,
 	}
 }
 
@@ -23,17 +23,17 @@ func (s *EmailService) SendOTP(toEmail, otp, reason string) error {
 	subject := "Your Verification OTP"
 	body := fmt.Sprintf("Your OTP is: %s\n\nThis OTP is valid for 2 minutes.\nDo not share this code with anyone.\n\nReason: %s", otp, reason)
 
-	if s.env == "production" {
+	if s.config.AppEnv == "production" {
 		return s.sendWithResend(toEmail, subject, body)
 	}
 	return s.sendWithGmail(toEmail, subject, body)
 }
 
 func (s *EmailService) sendWithGmail(to, subject, body string) error {
-	from := os.Getenv("SMTP_EMAIL")
-	password := os.Getenv("SMTP_PASSWORD")
-	host := os.Getenv("SMTP_HOST")
-	port := os.Getenv("SMTP_PORT")
+	from := s.config.SMTPEmail
+	password := s.config.SMTPPassword
+	host := s.config.SMTPHost
+	port := s.config.SMTPPort
 
 	if from == "" || password == "" {
 		return fmt.Errorf("SMTP credentials not set")
@@ -66,8 +66,8 @@ func (s *EmailService) sendWithGmail(to, subject, body string) error {
 }
 
 func (s *EmailService) sendWithResend(to, subject, body string) error {
-	apiKey := os.Getenv("RESEND_API_KEY")
-	from := os.Getenv("RESEND_FROM_EMAIL")
+	apiKey := s.config.ResendAPIKey
+	from := s.config.ResendFromEmail
 
 	if apiKey == "" || from == "" {
 		return fmt.Errorf("Resend API key or from email not set")

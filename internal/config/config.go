@@ -21,6 +21,7 @@ type Config struct {
 	SMTPPassword    string
 	ResendAPIKey    string
 	ResendFromEmail string
+	
 }
 
 func LoadConfig() Config {

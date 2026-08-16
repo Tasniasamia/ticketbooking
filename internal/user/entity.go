@@ -28,6 +28,7 @@ type User struct {
 
 }
 
+
 func (u *User) hashPassword(password string) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -39,4 +40,29 @@ func (u *User) hashPassword(password string) error {
 
 func (u *User) checkPassword(password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
+}
+
+func (u *User) buildUserResponse() *dto.UserResponse {
+
+	response := &dto.UserResponse{
+		Id:             u.ID,
+		Name:           u.Name,
+		Email:          u.Email,
+		Role:           u.Role,
+		Address:        u.Address,
+		PhoneNumber:    u.PhoneNumber,
+		Country:        u.Country,
+		ProfileImage:   u.ProfileImage,
+		ProfileImageId: u.ProfileImageId,
+		IsVerified:     u.IsVerified,
+		CreatedAt:      u.CreatedAt,
+		UpdatedAt:      u.UpdatedAt,
+		Status:         u.Status,
+	}
+
+	if u.Role == dto.MANAGER {
+		response.Designation = u.Designation
+	}
+
+	return response
 }

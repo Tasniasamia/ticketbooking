@@ -2,14 +2,15 @@ package user
 
 import (
 	"errors"
-    "gorm.io/gorm"
+
+	"gorm.io/gorm"
 )
 
 type Repository interface {
 	CreateUser(user *User) error
 	GetUserByEmail(email string) (*User, error)
 	GetUserById(userId uint) (*User, error)
-	UpdateUser(user *User) (*User, error)
+   UpdateUserFields(userId uint, updates map[string]interface{}) (*User, error)
 	DeleteUser(userId uint) error
 	MarkAsVerified(email string) error
 }
@@ -59,18 +60,20 @@ func (r *repository) GetUserById(userId uint) (*User, error) {
 }
 
 
-func  (r *repository) UpdateUser(user *User) (*User, error){
-  var UpdateUser *User;
-  err:=r.db.Save(user)
-  if err.Error != nil {
-    return nil, err.Error
-  }
-	result := r.db.Where(&User{Email: user.Email}).First(&UpdateUser)
+func (r *repository) UpdateUserFields(userId uint, updates map[string]interface{}) (*User, error) {
+	var user User
 
-  if(result.Error != nil){
-    return nil, result.Error
-  }
-  return UpdateUser, nil
+	result := r.db.Model(&User{}).Where("id = ?", userId).Updates(updates)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	// আপডেটের পর fresh data আনছি
+	if err := r.db.First(&user, userId).Error; err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 func (r *repository) DeleteUser(userId uint) error {

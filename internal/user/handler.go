@@ -133,6 +133,7 @@ func (h *handler) GetMe(c *echo.Context) error {
 }
 
 func (h *handler) UpdateUser(c *echo.Context) error {
+
 	userId, ok := c.Get("user_id").(uint)
 	if !ok {
 		return c.JSON(http.StatusUnauthorized, httpresponse.Error{
@@ -145,6 +146,7 @@ func (h *handler) UpdateUser(c *echo.Context) error {
 	}
 
 	var req dto.UpdateRequest
+
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, httpresponse.Error{
 			Success:      false,
@@ -166,6 +168,7 @@ func (h *handler) UpdateUser(c *echo.Context) error {
 	}
 
 	res, err := h.service.UpdateUser(userId, &req)
+
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
 			Success:      false,
@@ -182,9 +185,62 @@ func (h *handler) UpdateUser(c *echo.Context) error {
 		Message:    "User updated successfully",
 		Data:       res,
 	})
-
 }
+func (h *handler) UpdateMember(c *echo.Context) error {
 
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success:      false,
+			StatusCode:   http.StatusBadRequest,
+			Error:        true,
+			ErrorMessage: "Invalid user ID",
+			ErrorDetails: err.Error(),
+		})
+	}
+
+	var req dto.UpdateMemberRequest
+
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success:      false,
+			StatusCode:   http.StatusBadRequest,
+			Error:        true,
+			ErrorMessage: "Invalid request body",
+			ErrorDetails: err.Error(),
+		})
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success:      false,
+			StatusCode:   http.StatusBadRequest,
+			Error:        true,
+			ErrorMessage: "Validation failed",
+			ErrorDetails: err.Error(),
+		})
+	}
+
+	res, err := h.service.UpdateMember(uint(id), &req)
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
+			Success:      false,
+			StatusCode:   http.StatusInternalServerError,
+			Error:        true,
+			ErrorMessage: "Failed to update member",
+			ErrorDetails: err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success:    true,
+		StatusCode: http.StatusOK,
+		Message:    "Member updated successfully",
+		Data:       res,
+	})
+}
 func (h *handler) DeleteUser(c *echo.Context) error {
 	userId, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -297,5 +353,33 @@ func (h *handler) ResetPassword(c *echo.Context) error {
 	return c.JSON(http.StatusOK, httpresponse.Success{
 		Success: true, StatusCode: http.StatusOK,
 		Message: "Password reset successfully",
+	})
+}
+
+func (h *handler) ResendOTP(c *echo.Context) error {
+	var req dto.ResendOTPRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: http.StatusBadRequest, Error: true,
+			ErrorMessage: "Invalid request body", ErrorDetails: err.Error(),
+		})
+	}
+	if err := c.Validate(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: http.StatusBadRequest, Error: true,
+			ErrorMessage: "Validation failed", ErrorDetails: err.Error(),
+		})
+	}
+
+	if err := h.service.ResendOTP(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: http.StatusBadRequest, Error: true,
+			ErrorMessage: err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: http.StatusOK,
+		Message: "OTP has been resent successfully",
 	})
 }
