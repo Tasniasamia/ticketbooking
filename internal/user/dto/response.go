@@ -1,9 +1,41 @@
-package dto;
+package dto
 
-type Response struct{
-	Id uint `json:"id"`
-	Name     string `json:"name"`
-	Email    string `json:"email"`
+import "time"
+
+type Response struct {
+	Id        uint   `json:"id"`
+	Name      string `json:"name"`
+	Email     string `json:"email"`
 	CreatedAt string `json:"created_at"`
-	Token string `json:"token,omitempty"`
+	IsVerified bool   `json:"is_verified"`
+	Token     string `json:"token,omitempty"`
+}
+
+// type MemberResponse struct{
+// 	Id uint `json:"id"`
+//     Name  string `json:"name" validate:"required"`
+// 	Email string `json:"email" validate:"required,email"`
+// 	Role     RoleType `json:"role" gorm:"type:varchar(50);not null"`
+// 	Address  string `json:"address" gorm:"type:varchar(255)"`
+// 	PhoneNumber string `json:"phone_number" gorm:"type:varchar(20)"`
+// 	Country  string `json:"country" gorm:"type:varchar(100)"`
+// 	Designation string `json:"designation" gorm:"type:varchar(100)"`
+// 	ProfileImage string `json:"profile_image" gorm:"type:varchar(255)"`
+// 	ProfileImageId string `json:"profile_image_id" gorm:"type:varchar(255)"`
+// }
+
+type UserResponse struct {
+	Id             uint       `json:"id"`
+	Name           string     `json:"name" validate:"required"`
+	Email          string     `json:"email" validate:"required,email"`
+	Role           RoleType   `json:"role" gorm:"type:varchar(50);not null"`
+	Address        string     `json:"address" gorm:"type:varchar(255)"`
+	PhoneNumber    string     `json:"phone_number" gorm:"type:varchar(20)"`
+	Country        string     `json:"country" gorm:"type:varchar(100)"`
+	ProfileImage   string     `json:"profile_image" gorm:"type:varchar(255)"`
+	ProfileImageId uint       `json:"profile_image_id"`
+	Designation    string     `json:"designation" gorm:"type:varchar(100)"`
+	IsVerified bool   `json:"is_verified"`
+	CreatedAt      *time.Time `json:"created_at"`
+	UpdatedAt      *time.Time `json:"updated_at"`
 }

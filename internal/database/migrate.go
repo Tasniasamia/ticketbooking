@@ -6,6 +6,7 @@ import (
 	"ticketBooking/internal/event"
 	"ticketBooking/internal/language"
 	"ticketBooking/internal/media"
+	"ticketBooking/internal/otp"
 	"ticketBooking/internal/payment"
 	"ticketBooking/internal/settings"
 
@@ -27,5 +28,6 @@ func RunMigrations(db *gorm.DB) {
 		&payment.Payment{},	
 		&booking.Booking{},
         &payment.PaymentMethod{},
+		&otp.OTP{},
 	)
 }

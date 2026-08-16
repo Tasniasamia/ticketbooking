@@ -9,7 +9,9 @@ type Repository interface {
 	CreateUser(user *User) error
 	GetUserByEmail(email string) (*User, error)
 	GetUserById(userId uint) (*User, error)
-	
+	UpdateUser(user *User) (*User, error)
+	DeleteUser(userId uint) error
+	MarkAsVerified(email string) error
 }
 
 type repository struct {
@@ -40,6 +42,7 @@ func (r *repository) GetUserByEmail(email string) (*User, error) {
 	if result.Error != nil {
 		return nil, result.Error
 	}
+	
 	return &user, nil
 }
 
@@ -53,4 +56,27 @@ func (r *repository) GetUserById(userId uint) (*User, error) {
 	}
 
 	return &user, nil
+}
+
+
+func  (r *repository) UpdateUser(user *User) (*User, error){
+  var UpdateUser *User;
+  err:=r.db.Save(user)
+  if err.Error != nil {
+    return nil, err.Error
+  }
+	result := r.db.Where(&User{Email: user.Email}).First(&UpdateUser)
+
+  if(result.Error != nil){
+    return nil, result.Error
+  }
+  return UpdateUser, nil
+}
+
+func (r *repository) DeleteUser(userId uint) error {
+	return r.db.Delete(&User{}, userId).Error
+}
+
+func (r *repository) MarkAsVerified(email string) error {
+	return r.db.Model(&User{}).Where("email = ?", email).Update("is_verified", true).Error
 }

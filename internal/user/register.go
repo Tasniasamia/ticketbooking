@@ -22,8 +22,11 @@ func UserRegisterRoutes(e *echo.Group,db *gorm.DB,config config.Config){
 	authRoute.POST("/users",NewUserHandler.CreateUser);
     authRoute.POST("/login",NewUserHandler.LoginUser);
     authRoute.GET("/me",NewUserHandler.GetMe,middleware.AuthMiddleware(JWTService));
-
-
+	authRoute.PATCH("/me",NewUserHandler.UpdateUser,middleware.AuthMiddleware(JWTService));
+	authRoute.DELETE("/:id",NewUserHandler.DeleteUser,middleware.AuthMiddleware(JWTService),middleware.AdminMiddleware());
+authRoute.POST("/verify-otp", NewUserHandler.VerifyOTP)
+	authRoute.POST("/forgot-password", NewUserHandler.ForgotPassword)
+	authRoute.POST("/reset-password", NewUserHandler.ResetPassword)
 	authRoute.GET("/", func(c *echo.Context) error {
     return c.JSON(http.StatusOK, map[string]string{"message": "Hello, World!"})
   });
