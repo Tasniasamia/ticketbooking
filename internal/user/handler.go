@@ -423,3 +423,21 @@ func (h *handler) GetUserById(c *echo.Context) error {
 		Message: "User fetched successfully", Data: user,
 	})
 }
+
+
+func (h *handler) GetAllManager(c *echo.Context) error {
+	params := query.Parse(c)
+	params.Filters["role"] = "manager"
+    data, err := h.service.GetAllUsers(params)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
+			Success: false, StatusCode: http.StatusInternalServerError, Error: true,
+			ErrorMessage: "Failed to fetch users", ErrorDetails: err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: http.StatusOK,
+		Message: "Users fetched successfully", Data: data,
+	})
+}

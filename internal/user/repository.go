@@ -96,3 +96,4 @@ func (r *repository) GetAll(p query.Params) ([]*User, int64, error) {
 	if err := db.Find(&users).Error; err != nil { return nil, 0, err }
 	return users, total, nil
 }
+

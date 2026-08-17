@@ -36,7 +36,9 @@ func UserRegisterRoutes(e *echo.Group,db *gorm.DB,config config.Config){
 	authRoute.POST("/reset-password", NewUserHandler.ResetPassword)
 	authRoute.POST("/resend-otp", NewUserHandler.ResendOTP)
 	authRoute.GET("/all", NewUserHandler.GetAllUsers,middleware.AuthMiddleware(JWTService),middleware.AdminMiddleware())
-    authRoute.GET("/:id", NewUserHandler.GetUserById,middleware.AuthMiddleware(JWTService),middleware.AdminMiddleware())
+   	authRoute.GET("/all/managers", NewUserHandler.GetAllManager,middleware.AuthMiddleware(JWTService),middleware.AdminMiddleware())
+
+	authRoute.GET("/:id", NewUserHandler.GetUserById,middleware.AuthMiddleware(JWTService),middleware.AdminMiddleware())
 	
 	authRoute.GET("/", func(c *echo.Context) error {
     return c.JSON(http.StatusOK, map[string]string{"message": "Hello, World!"})
