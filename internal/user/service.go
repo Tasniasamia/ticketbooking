@@ -31,10 +31,23 @@ func (s *Service) CreateUser(req *dto.CreateRequest) (*dto.Response, error) {
 		return nil, fmt.Errorf("email already registered")
 	}
 
+switch req.Role {
+case "manager":
+	req.Role = dto.MANAGER
+
+case "admin":
+	req.Role = dto.ADMIN
+
+default:
+	req.Role = dto.USER
+}
+
 	user := &User{
 		Name:       req.Name,
 		Email:      req.Email,
 		IsVerified: false,
+		Role:       req.Role,
+		Status: dto.ACTIVE,
 	}
 
 	if err := user.hashPassword(req.Password); err != nil {
@@ -56,6 +69,7 @@ func (s *Service) CreateUser(req *dto.CreateRequest) (*dto.Response, error) {
 		Email:      user.Email,
 		IsVerified: user.IsVerified,
 		CreatedAt:  user.CreatedAt.Format("2006-01-02 15:04:05"),
+		Role:user.Role,
 	}, nil
 }
 

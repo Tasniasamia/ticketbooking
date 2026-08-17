@@ -17,7 +17,7 @@ type Params struct {
 	SortDir string // asc / desc
 
 	// Dynamic filters (key = column, value = value)
-	Filters map[string]string
+	Filters map[string]interface{}
 
 	// Range filters
 	MinPrice *int
@@ -46,7 +46,7 @@ func Parse(c *echo.Context) Params {
 		sortDir = "desc"
 	}
 
-	filters := map[string]string{}
+	filters := map[string]interface{}{}
 	for key, values := range c.QueryParams() {
 		if len(values) == 0 {
 			continue

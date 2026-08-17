@@ -3,8 +3,9 @@ package user
 import (
 	"errors"
 
-	"gorm.io/gorm"
 	"ticketBooking/internal/utils/query"
+
+	"gorm.io/gorm"
 )
 
 type Repository interface {

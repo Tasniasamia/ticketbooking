@@ -13,31 +13,68 @@ type Repository interface {
 	Update(event *Event) error
 	DecrementTickets(eventID uint, quantity int) error
 	IncrementTickets(eventID uint, quantity int) error
+	Delete(event *Event) error
 }
 
 type repository struct{ db *gorm.DB }
 
 func NewRepository(db *gorm.DB) Repository { return &repository{db: db} }
 
-func (r *repository) Create(event *Event) error { return r.db.Create(event).Error }
+func (r *repository) Create(event *Event) error {
+	// return r.db.Create(event).Error
+	// 1. আগে insert করো
+	if err := r.db.Create(event).Error; err != nil {
+		return err
+	}
+
+	// 2. Insert সফল হলে Manager + Category preload করো
+	return r.db.
+		Preload("Manager", func(db *gorm.DB) *gorm.DB {
+			return db.Select("id", "name", "role","email", "designation", "profile_image", "profile_image_id", "phone_number", "country", "status")
+		}).
+		Preload("Category").
+		First(event, event.ID).Error
+}
 
 func (r *repository) GetAll(p query.Params) ([]*Event, int64, error) {
 	var events []*Event
 	var total int64
+
 	db := r.db.Model(&Event{})
 	db = query.Apply(db, p, nil, []string{"title", "description", "location"})
-	if err := db.Count(&total).Error; err != nil { return nil, 0, err }
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
 	db = query.Paginate(db, p)
-	if err := db.Find(&events).Error; err != nil { return nil, 0, err }
+
+	err := db.
+		Preload("Manager").
+		Preload("Category").
+		Find(&events).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
 	return events, total, nil
 }
 
 func (r *repository) GetByID(eventId uint) (*Event, error) {
 	var event Event
-	if err := r.db.First(&event, eventId).Error; err != nil { return nil, err }
+
+	err := r.db.
+		Preload("Manager").
+		Preload("Category").
+		First(&event, eventId).Error
+
+	if err != nil {
+		return nil, err
+	}
+
 	return &event, nil
 }
-
 func (r *repository) Update(event *Event) error { return r.db.Save(event).Error }
 
 func (r *repository) DecrementTickets(eventID uint, quantity int) error {
@@ -49,4 +86,8 @@ func (r *repository) DecrementTickets(eventID uint, quantity int) error {
 
 func (r *repository) IncrementTickets(eventID uint, quantity int) error {
 	return r.db.Exec(`UPDATE events SET available_tickets = available_tickets + ? WHERE id = ?`, quantity, eventID).Error
+}
+
+func (r *repository) Delete(event *Event) error {
+	return r.db.Delete(event).Error
 }
