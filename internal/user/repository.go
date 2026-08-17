@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"gorm.io/gorm"
+	"ticketBooking/internal/utils/query"
 )
 
 type Repository interface {
@@ -13,6 +14,7 @@ type Repository interface {
    UpdateUserFields(userId uint, updates map[string]interface{}) (*User, error)
 	DeleteUser(userId uint) error
 	MarkAsVerified(email string) error
+	 GetAll(p query.Params) ([]*User, int64, error)
 }
 
 type repository struct {
@@ -82,4 +84,15 @@ func (r *repository) DeleteUser(userId uint) error {
 
 func (r *repository) MarkAsVerified(email string) error {
 	return r.db.Model(&User{}).Where("email = ?", email).Update("is_verified", true).Error
+}
+
+func (r *repository) GetAll(p query.Params) ([]*User, int64, error) {
+	var users []*User
+	var total int64
+	db := r.db.Model(&User{})
+	db = query.Apply(db, p, nil, []string{"name", "email"})
+	if err := db.Count(&total).Error; err != nil { return nil, 0, err }
+	db = query.Paginate(db, p)
+	if err := db.Find(&users).Error; err != nil { return nil, 0, err }
+	return users, total, nil
 }

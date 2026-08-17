@@ -4,9 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"ticketBooking/internal/auth"
+	"ticketBooking/internal/httpresponse"
 	"ticketBooking/internal/otp"
 	"ticketBooking/internal/user/dto"
-
+	"ticketBooking/internal/utils/query"
 )
 
 
@@ -330,4 +331,30 @@ func (s *Service) ResendOTP(req *dto.ResendOTPRequest) error {
 	}
 
 	return s.otp.GenerateAndSend(req.Email, req.Reason)
+}
+
+func (s *Service) GetAllUsers(params query.Params) (*httpresponse.PaginatedData, error) {
+	users, total, err := s.repo.GetAll(params)
+	if err != nil {
+		return nil, err
+	}
+
+	docs := make([]*dto.UserResponse, 0, len(users))
+	for _, u := range users {
+		docs = append(docs, u.buildUserResponse())
+	}
+
+	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
+	return &httpresponse.PaginatedData{
+		Docs:           docs,
+		PaginationMeta: meta,
+	}, nil
+}
+
+func (s *Service) GetUserById(userId uint) (*User, error){
+	singleUser, err := s.repo.GetUserById(userId)
+	if err != nil {
+		return nil, err
+	}
+	return singleUser, nil
 }

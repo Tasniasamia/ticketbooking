@@ -6,6 +6,7 @@ import (
 
 	"ticketBooking/internal/httpresponse"
 	"ticketBooking/internal/user/dto"
+	"ticketBooking/internal/utils/query"
 
 	"github.com/labstack/echo/v5"
 )
@@ -381,5 +382,44 @@ func (h *handler) ResendOTP(c *echo.Context) error {
 	return c.JSON(http.StatusOK, httpresponse.Success{
 		Success: true, StatusCode: http.StatusOK,
 		Message: "OTP has been resent successfully",
+	})
+}
+
+func (h *handler) GetAllUsers(c *echo.Context) error {
+	params := query.Parse(c)
+    data, err := h.service.GetAllUsers(params)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
+			Success: false, StatusCode: http.StatusInternalServerError, Error: true,
+			ErrorMessage: "Failed to fetch users", ErrorDetails: err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: http.StatusOK,
+		Message: "Users fetched successfully", Data: data,
+	})
+}
+
+func (h *handler) GetUserById(c *echo.Context) error {
+	userId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: http.StatusBadRequest, Error: true,
+			ErrorMessage: "Invalid user ID",
+		})
+	}
+
+	user, err := h.service.GetUserById(uint(userId))
+	if err != nil {
+		return c.JSON(http.StatusNotFound, httpresponse.Error{
+			Success: false, StatusCode: http.StatusNotFound, Error: true,
+			ErrorMessage: "User not found",
+		})
+	}
+
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: http.StatusOK,
+		Message: "User fetched successfully", Data: user,
 	})
 }
