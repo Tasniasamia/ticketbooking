@@ -11,7 +11,7 @@ import (
 	"ticketBooking/internal/user"
 	"ticketBooking/internal/payment"
 	"ticketBooking/internal/booking"
-
+    "ticketBooking/internal/eventCategory"
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"
 )
@@ -29,6 +29,7 @@ func RegisterAllRoutes(api *echo.Group, db *gorm.DB, config config.Config) {
 		settings.SettingsRegisterRoutes,
 		payment.PaymentRegisterRoutes,
 		booking.BookingRegisterRoutes,
+		eventCategory.EventCategoryRegisterRoutes,
 		
 	}
 
