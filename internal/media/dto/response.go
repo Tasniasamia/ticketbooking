@@ -18,15 +18,7 @@ type Response struct {
 	CreatedAt    string `json:"created_at"`
 }
 
-// Convenience response the user asked for
-// Example when uploading for event:
-//
-//	{
-//	  "event_url": "https://res.cloudinary.com/..../image.jpg",
-//	  "event_id":  15,          // media table auto id
-//	  "image_id":  "events/abc",
-//	  "type":      "image"
-//	}
+
 type ModelKeyedResponse struct {
 	EventURL  string `json:"event_url,omitempty"`
 	EventID   uint   `json:"event_id,omitempty"`

@@ -65,10 +65,7 @@ func (h *handler) UploadFile(c *echo.Context) error {
 			ErrorDetails: err.Error(),
 		})
 	}
-	// ModelName string `form:"model_name" validate:"required,oneof=event user product booking category banner"`
-	// ModelID   *uint  `form:"model_id"`
-	// Folder    string `form:"folder"`
-	// 4. Service
+
 	res, err := h.service.UploadFile(c.Request().Context(), file, header, &req)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
@@ -80,16 +77,6 @@ func (h *handler) UploadFile(c *echo.Context) error {
 		})
 	}
 
-	// 5. Success – also include the model-keyed shape the user asked for
-	// keyed := map[string]interface{}{
-	// 	req.ModelName + "_url": res.SecureURL,
-	// 	req.ModelName + "_id":  res.ID,
-	// 	"image_id":             res.ImageID,
-	// 	"public_url":           res.PublicURL,
-	// 	"type":                 res.Type,
-	// 	"model_name":           res.ModelName,
-	// 	"created_at":           res.CreatedAt,
-	// }
 
 	return c.JSON(http.StatusCreated, httpresponse.Success{
 		Success:    true,
@@ -97,7 +84,6 @@ func (h *handler) UploadFile(c *echo.Context) error {
 		Message:    "File uploaded successfully",
 		Data: map[string]interface{}{
 			"media": res,
-			// "keyed": keyed, // e.g. event_url + event_id
 		},
 	})
 }

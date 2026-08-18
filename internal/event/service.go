@@ -93,21 +93,5 @@ func (s *Service) DeleteEvent(eventId uint) error {
 	return s.repo.Delete(event)
 }
 
-// func (s *Service) GetMyEvents(params query.Params, lang string) (*httpresponse.PaginatedData, error) {
-// 	events, total, err := s.repo.GetAll(params)
-// 	if err != nil {
-// 		return nil, err
-// 	}
 
-// 	docs := make([]*dto.Response, 0, len(events))
-// 	for _, e := range events {
-// 		docs = append(docs, e.ToResponse(lang))
-// 	}
-
-// 	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
-// 	return &httpresponse.PaginatedData{
-// 		Docs:           docs,
-// 		PaginationMeta: meta,
-// 	}, nil
-// }
 

@@ -10,7 +10,7 @@ type MediaImage struct {
 	ID  uint   `json:"id"`
 	URL string `json:"url"`
 }
-
+//convert byte , then string and send to database ,when it's Send to database(It works automatically)
 func (m MediaImage) Value() (driver.Value, error) {
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -18,6 +18,7 @@ func (m MediaImage) Value() (driver.Value, error) {
 	}
 	return string(b), nil   // ← string return করো, []byte না
 }
+//convert byte , then string and send to server ,when it's fetched from database (It works automatically)
 
 func (m *MediaImage) Scan(value interface{}) error {
 	if value == nil {
@@ -35,7 +36,9 @@ func (m *MediaImage) Scan(value interface{}) error {
 	}
 	return json.Unmarshal(bytes, m)
 }
+
 type MediaImageList []MediaImage
+//convert byte , then string and send to database ,when it's Send to database(It works automatically)
 
 func (m MediaImageList) Value() (driver.Value, error) {
 	if m == nil {
@@ -47,6 +50,7 @@ func (m MediaImageList) Value() (driver.Value, error) {
 	}
 	return string(b), nil   // ← string
 }
+//convert byte , then string and send to server ,when it's fetched from database (It works automatically)
 
 func (m *MediaImageList) Scan(value interface{}) error {
 	if value == nil {
