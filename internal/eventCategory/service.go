@@ -31,7 +31,7 @@ func (s *Service) CreateEventCategory(req *dto.CreateEventCategoryRequest) (*dto
 }
 
 func (s *Service) GetAllEventCategories(params query.Params, lang string) (*httpresponse.PaginatedData, error) {
-	eventCategories, total, err := s.repo.GetAll(params)
+	eventCategories, total, err := s.repo.GetAll(params,lang)
 	if err != nil {
 		return nil, err
 	}

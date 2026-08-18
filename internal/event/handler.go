@@ -71,11 +71,11 @@ func (h *handler) CreateEvent(c *echo.Context) error {
 func (h *handler) GetAllEvents(c *echo.Context) error {
 	params := query.Parse(c)
 	lang := c.QueryParam("lang")
-
-	fmt.Println("lang", lang);
+     
 	if lang == "" {
 		lang = "en"
 	}
+
 
 	data, err := h.service.GetAllEvents(params, lang)
 	if err != nil {

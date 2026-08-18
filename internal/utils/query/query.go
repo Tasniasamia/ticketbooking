@@ -46,19 +46,54 @@ func Parse(c *echo.Context) Params {
 		sortDir = "desc"
 	}
 
+	// filters := map[string]string{}
+	// for key, values := range c.QueryParams() {
+	// 	if len(values) == 0 {
+	// 		continue
+	// 	}
+	// 	// skip known params
+	// 	switch key {
+	// 	case "page", "limit", "search", "sort_by", "sort_dir",
+	// 		"min_price", "max_price", "from_date", "to_date","lang":
+	// 		continue
+	// 	}
+	// 	filters[key] = values[0]
+	// }
 	filters := map[string]interface{}{}
-	for key, values := range c.QueryParams() {
-		if len(values) == 0 {
-			continue
-		}
-		// skip known params
-		switch key {
-		case "page", "limit", "search", "sort_by", "sort_dir",
-			"min_price", "max_price", "from_date", "to_date","lang":
-			continue
-		}
-		filters[key] = values[0]
+
+for key, values := range c.QueryParams() {
+	if len(values) == 0 {
+		continue
 	}
+
+	switch key {
+	case "page", "limit", "search", "sort_by", "sort_dir",
+		"min_price", "max_price", "from_date", "to_date", "lang":
+		continue
+	}
+
+	value := values[0]
+	// int
+	if v, err := strconv.ParseUint(value, 10, 0); err == nil {
+			filters[key] = uint(v);
+			continue
+	
+	}
+	if v, err := strconv.Atoi(value); err == nil {
+		filters[key] = v
+		continue
+	}
+	// bool
+	if v, err := strconv.ParseBool(value); err == nil {
+		filters[key] = v
+		continue
+	}
+
+
+
+	// string
+	filters[key] = value
+}
 
 	var minPrice, maxPrice *int
 	if v := c.QueryParam("min_price"); v != "" {
@@ -95,7 +130,7 @@ func Parse(c *echo.Context) Params {
 }
 
 // Apply → GORM query-তে সব কিছু apply করে
-func Apply(db *gorm.DB, p Params, searchFields []string, jsonbFields []string) *gorm.DB {
+func Apply(db *gorm.DB, p Params, searchFields []string, jsonbFields []string,lang interface{}) *gorm.DB {
 	// 1. Search
 	if p.Search != "" {
 		var conditions []string
@@ -108,10 +143,31 @@ func Apply(db *gorm.DB, p Params, searchFields []string, jsonbFields []string) *
 		}
 
 		// JSONB multi-lang column  →  title::text ILIKE '%...%'
+		// for _, field := range jsonbFields {
+		// 	conditions = append(conditions, field+"::text ILIKE ?")
+		// 	args = append(args, "%"+p.Search+"%")
+		// }
+
+
 		for _, field := range jsonbFields {
-			conditions = append(conditions, field+"::text ILIKE ?")
-			args = append(args, "%"+p.Search+"%")
-		}
+    conditions = append(
+        conditions,
+        field+" ->> ? ILIKE ?",
+    )
+
+    args = append(
+        args,
+        lang,
+        "%"+p.Search+"%",
+    )
+}
+
+
+
+
+
+
+
 
 		if len(conditions) > 0 {
 			db = db.Where(strings.Join(conditions, " OR "), args...)

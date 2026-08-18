@@ -8,7 +8,7 @@ import (
 
 type Repository interface {
 	Create(event *EventCategory) error
-	GetAll(p query.Params) ([]*EventCategory, int64, error)
+	GetAll(p query.Params,lang string) ([]*EventCategory, int64, error)
 	GetByID(eventId uint) (*EventCategory, error)
 	Update(event *EventCategory) error
 	Delete(eventId uint) error
@@ -21,11 +21,11 @@ func NewRepository(db *gorm.DB) Repository { return &repository{db: db} }
 
 func (r *repository) Create(event *EventCategory) error { return r.db.Create(event).Error }
 
-func (r *repository) GetAll(p query.Params) ([]*EventCategory, int64, error) {
+func (r *repository) GetAll(p query.Params,lang string) ([]*EventCategory, int64, error) {
 	var events []*EventCategory
 	var total int64
 	db := r.db.Model(&EventCategory{})
-	db = query.Apply(db, p, nil, []string{"name", "description", "created_at"})
+	db = query.Apply(db, p, nil, []string{"name", "description", "created_at"},lang)
 	if err := db.Count(&total).Error; err != nil { return nil, 0, err }
 	db = query.Paginate(db, p)
 	if err := db.Find(&events).Error; err != nil { return nil, 0, err }

@@ -8,7 +8,7 @@ import (
 
 type Repository interface {
 	Create(event *Event) error
-	GetAll(p query.Params) ([]*Event, int64, error)
+	GetAll(p query.Params,lang string) ([]*Event, int64, error)
 	GetByID(eventId uint) (*Event, error)
 	Update(event *Event) error
 	DecrementTickets(eventID uint, quantity int) error
@@ -21,7 +21,6 @@ type repository struct{ db *gorm.DB }
 func NewRepository(db *gorm.DB) Repository { return &repository{db: db} }
 
 func (r *repository) Create(event *Event) error {
-	// return r.db.Create(event).Error
 	// 1. আগে insert করো
 	if err := r.db.Create(event).Error; err != nil {
 		return err
@@ -29,19 +28,17 @@ func (r *repository) Create(event *Event) error {
 
 	// 2. Insert সফল হলে Manager + Category preload করো
 	return r.db.
-		Preload("Manager", func(db *gorm.DB) *gorm.DB {
-			return db.Select("id", "name", "role","email", "designation", "profile_image", "profile_image_id", "phone_number", "country", "status")
-		}).
+		Preload("Manager").
 		Preload("Category").
 		First(event, event.ID).Error
 }
 
-func (r *repository) GetAll(p query.Params) ([]*Event, int64, error) {
+func (r *repository) GetAll(p query.Params, lang string) ([]*Event, int64, error) {
 	var events []*Event
 	var total int64
 
 	db := r.db.Model(&Event{})
-	db = query.Apply(db, p, nil, []string{"title", "description", "location"})
+	db = query.Apply(db, p, nil, []string{"title", "description", "location"}, lang)
 
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err

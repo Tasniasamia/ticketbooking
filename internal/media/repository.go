@@ -63,7 +63,7 @@ func (r *repository) List(p query.Params, filter dto.ListFilter) ([]*Media, int6
 	}
 
 	// generic search / sort / pagination from shared query helper
-	db = query.Apply(db, p, nil, nil)
+	db = query.Apply(db, p, nil, nil,nil)
 
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err

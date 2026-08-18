@@ -37,7 +37,7 @@ func (s *Service) CreateEvent(req *dto.CreateRequest) (*dto.RawResponse, error) 
 }
 
 func (s *Service) GetAllEvents(params query.Params, lang string) (*httpresponse.PaginatedData, error) {
-	events, total, err := s.repo.GetAll(params)
+	events, total, err := s.repo.GetAll(params,lang)
 	if err != nil {
 		return nil, err
 	}
