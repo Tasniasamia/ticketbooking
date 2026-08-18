@@ -15,7 +15,8 @@ type Repository interface {
    UpdateUserFields(userId uint, updates map[string]interface{}) (*User, error)
 	DeleteUser(userId uint) error
 	MarkAsVerified(email string) error
-	 GetAll(p query.Params) ([]*User, int64, error)
+	GetAll(p query.Params) ([]*User, int64, error)
+	GetUserActiveById (userId uint) (*User, error) 
 }
 
 type repository struct {
@@ -98,3 +99,15 @@ func (r *repository) GetAll(p query.Params) ([]*User, int64, error) {
 	return users, total, nil
 }
 
+
+func (r *repository) GetUserActiveById (userId uint) (*User, error) {
+	var user User
+
+	result := r.db.Where("id = ? AND is_verified = ? AND status=?" , userId, true, "active").First(&user)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &user, nil
+}

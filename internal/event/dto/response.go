@@ -44,6 +44,7 @@ type Response struct {
 	Images           media.MediaImageList `json:"images"`
 	ManagerID        uint                 `json:"manager_id"`
 	Manager          *ManagerInfo         `json:"manager,omitempty"` // ← এখানে
+	Status         dto.StatusType       `json:"status" gorm:"type:varchar(20);not null;default:'pending'"`
 
 	CategoryID uint          `json:"category_id"`
 	Category   *CategoryInfo `json:"category,omitempty"` // ← এখানেeventCategory.EventCategory `json:"category,omitempty" gorm:"foreignKey:CategoryID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT"`
@@ -65,6 +66,7 @@ type RawResponse struct {
 	Images           media.MediaImageList `json:"images"`
 	ManagerID        uint                 `json:"manager_id"`
 	Manager          *ManagerInfo         `json:"manager,omitempty"` // ← এখানে
+	Status            StatusType       `json:"status" gorm:"type:varchar(20);not null;default:'pending'"`
 
 	CategoryID uint          `json:"category_id"`
 	Category   *CategoryInfo `json:"category,omitempty"` // ← এখানে

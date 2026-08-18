@@ -90,6 +90,30 @@ func (h *handler) GetAllEvents(c *echo.Context) error {
 		Message: "Events fetched successfully", Data: data,
 	})
 }
+func (h *handler) GetAllEventsPublic(c *echo.Context) error {
+	params := query.Parse(c)
+	lang := c.QueryParam("lang")
+     
+	if lang == "" {
+		lang = "en"
+	}
+
+	params.Filters["status"] = "approved";
+
+	data, err := h.service.GetAllEvents(params, lang)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
+			Success: false, StatusCode: http.StatusInternalServerError, Error: true,
+			ErrorMessage: "Failed to fetch events", ErrorDetails: err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: http.StatusOK,
+		Message: "Events fetched successfully", Data: data,
+	})
+}
+
 
 func (h *handler) DeleteEvent(c *echo.Context) error {
 	eventId, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -222,3 +246,41 @@ func (h *handler) GetMyEvents(c *echo.Context) error {
 	})
 }
 
+func (h *handler) UpdateEventStatus(c *echo.Context) error {
+	var req dto.UpdateEventStatusRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success:      false,
+			StatusCode:   http.StatusBadRequest,
+			Error:        true,
+			ErrorMessage: "Invalid request body",
+			ErrorDetails: err.Error(),
+		})
+	}
+
+	if err := c.Validate(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success:      false,
+			StatusCode:   http.StatusBadRequest,
+			Error:        true,
+			ErrorMessage: "Validation failed",
+			ErrorDetails: err.Error(),
+		})
+	}
+
+	if err := h.service.UpdateEventStatus(&req); err != nil {
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
+			Success:      false,
+			StatusCode:   http.StatusInternalServerError,
+			Error:        true,
+			ErrorMessage: "Failed to update event status",
+			ErrorDetails: err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success:    true,
+		StatusCode: http.StatusOK,
+		Message:    "Event status updated successfully",
+	})
+}

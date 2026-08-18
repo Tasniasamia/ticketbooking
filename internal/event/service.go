@@ -1,18 +1,21 @@
 package event
 
 import (
+	"errors"
 	"ticketBooking/internal/event/dto"
 	"ticketBooking/internal/httpresponse"
+	"ticketBooking/internal/user"
 	"ticketBooking/internal/utils/i18n"
 	"ticketBooking/internal/utils/query"
 )
 
 type Service struct {
 	repo Repository
+	userRepo user.Repository
 }
 
-func NewEventService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewEventService(repo Repository,userRepo user.Repository) *Service {
+	return &Service{repo: repo, userRepo: userRepo}
 }
 
 func (s *Service) CreateEvent(req *dto.CreateRequest) (*dto.RawResponse, error) {
@@ -29,7 +32,12 @@ func (s *Service) CreateEvent(req *dto.CreateRequest) (*dto.RawResponse, error) 
 		ManagerID:          req.ManagerID,
 		CategoryID:         req.CategoryID,
 	}
+   
+   if _,err :=s.userRepo.GetUserActiveById(req.ManagerID); err != nil {
+       return nil, errors.New("Invalid manager ID");
+   }
 
+	
 	if err := s.repo.Create(event); err != nil {
 		return nil, err
 	}
@@ -53,6 +61,7 @@ func (s *Service) GetAllEvents(params query.Params, lang string) (*httpresponse.
 		PaginationMeta: meta,
 	}, nil
 }
+
 
 func (s *Service) GetEventByID(eventId uint, lang string) (*dto.RawResponse, error) {
 	event, err := s.repo.GetByID(eventId)
@@ -94,4 +103,13 @@ func (s *Service) DeleteEvent(eventId uint) error {
 }
 
 
+func (s *Service) UpdateEventStatus(req *dto.UpdateEventStatusRequest) error {
+	event, err := s.repo.GetByID(req.EventId)
+	if err != nil {
+		return err
+	}
 
+	event.Status = req.Status
+
+	return s.repo.Update(event)
+}

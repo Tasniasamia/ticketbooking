@@ -29,34 +29,13 @@ type Event struct {
 	// --- Images (new structure) ---
 	ThumbnailImage media.MediaImage     `json:"thumbnail_image" validate:"required"`
 	Images         media.MediaImageList `json:"images"`   // array of objects
-
 	CategoryID uint                       `json:"category_id" gorm:"not null;index"`
 	Category   eventCategory.EventCategory `json:"category,omitempty" gorm:"foreignKey:CategoryID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT"`
+	Status         dto.StatusType       `json:"status" gorm:"type:varchar(20);not null;default:'pending'"`
+
 }
 
-// Helper type (same package বা utils-এ রাখতে পারো)
-// dto/response.go
 
-
-// func (e *Event) ToResponse(lang string) *dto.Response {
-// 	return &dto.Response{
-// 		ID:               e.ID,
-// 		Title:            e.Title.Get(lang),
-// 		Description:      e.Description.Get(lang),
-// 		Location:         e.Location.Get(lang),
-// 		StartsAt:         e.StartsAt,
-// 		TotalTickets:     e.TotalTickets,
-// 		AvailableTickets: e.AvailableTickets,
-// 		Price:            e.Price,
-// 		CreatedAt:        e.CreatedAt,
-// 		ThumbnailImage: e.ThumbnailImage,
-// 		Images:           e.Images,
-// 		ManagerID:        e.ManagerID,
-// 		Manager:          e.Manager,
-// 		CategoryID:       e.CategoryID,
-// 		Category:         e.Category,
-// 	}
-// }
 func (e *Event) ToResponse() *dto.RawResponse {
 	res := &dto.RawResponse{
 		ID:               e.ID,
@@ -72,6 +51,7 @@ func (e *Event) ToResponse() *dto.RawResponse {
 		CategoryID:       e.CategoryID,
 		ThumbnailImage:   e.ThumbnailImage,
 		Images:           e.Images,
+		Status:           e.Status,
 	}
 
 	// শুধু যে field চাও, সেগুলোই দাও
@@ -118,6 +98,8 @@ func (e *Event) ToRawResponse() *dto.RawResponse {
 		CategoryID:       e.CategoryID,
 		ThumbnailImage:   e.ThumbnailImage,
 		Images:           e.Images,
+		Status:           e.Status,
+
 	}
 
 	// শুধু যে field চাও, সেগুলোই দাও

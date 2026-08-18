@@ -6,6 +6,15 @@ import (
 )
 
 
+type StatusType string;
+
+const (
+	Pending StatusType = "pending"
+	Approved StatusType = "approved"
+	Canceled StatusType = "canceled"
+)
+
+
 
 type CreateRequest struct {
 	Title          map[string]string `json:"title" validate:"required"`
@@ -18,6 +27,7 @@ type CreateRequest struct {
 	Images         media.MediaImageList `json:"images"`
 	ManagerID      uint              `json:"manager_id" gorm:"not null;index"`
 	CategoryID     uint              `json:"category_id" gorm:"not null;index"`
+	Status         StatusType        `json:"status" gorm:"type:varchar(20);not null;default:'pending'"`
 }
 
 type UpdateRequest struct {
@@ -30,5 +40,15 @@ type UpdateRequest struct {
 	Images         media.MediaImageList `json:"images"`
 	ManagerID      uint              `json:"manager_id" gorm:"not null;index"`
 	CategoryID     uint              `json:"category_id" gorm:"not null;index"`
+	Status         StatusType        `json:"status" gorm:"type:varchar(20);not null;default:'pending'"`
+
 }
+
+
+type UpdateEventStatusRequest struct{
+	    EventId uint         `json:"eventId"`  
+		Status         StatusType        `json:"status" gorm:"type:varchar(20);not null;default:'pending'"`
+
+}
+
 
