@@ -27,8 +27,17 @@ type repository struct{ db *gorm.DB }
 func NewRepository(db *gorm.DB) Repository { return &repository{db: db} }
 
 func (r *repository) Create(booking *Booking) error {
-	return r.db.Create(booking).Error
-}
+		if err := r.db.Create(booking).Error; err != nil {
+		return err
+
+	}
+    return r.db.
+		Preload("UserInfo").
+		Preload("EventInfo").                
+		Preload("EventInfo.Manager").       
+		Preload("EventInfo.Category").
+		First(booking, booking.ID).Error
+	}
 
 func (r *repository) GetByID(bookingID uint) (*Booking, error) {
 	var b Booking
