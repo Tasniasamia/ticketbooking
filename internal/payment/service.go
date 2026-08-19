@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -14,18 +13,19 @@ import (
 	"ticketBooking/internal/currency"
 	"ticketBooking/internal/event"
 	"ticketBooking/internal/payment/dto"
-	"ticketBooking/internal/settings"
-    "github.com/stripe/stripe-go/v82/checkout/session"
+
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
+	"github.com/stripe/stripe-go/v82/checkout/session"
 	"github.com/stripe/stripe-go/v82/webhook"
+	// "gorm.io/datatypes"
 )
 
 var (
 	ErrGatewayDisabled   = errors.New("selected payment gateway is not enabled")
 	ErrInvalidMethod     = errors.New("invalid payment method")
 	ErrSettingsNotFound  = errors.New("site settings not configured")
-	ErrMissingGatewayKey = errors.New("payment gateway credentials missing in settings")
+	ErrMissingGatewayKey = errors.New("payment gateway credentials missing")
 )
 
 type Service interface {
@@ -35,8 +35,8 @@ type Service interface {
 	GetByID(id uint) (*dto.PaymentResponse, error)
 	GetByTransactionID(tranID string) (*dto.PaymentResponse, error)
 	GetByUserID(userID uint) ([]*dto.PaymentResponse, error)
-    VerifyStripeSession(sessionID string) (*dto.PaymentResponse, error)
-	VerifySSLCommerzSession(tranID,status string) (*dto.PaymentResponse, error)
+	VerifyStripeSession(sessionID string) (*dto.PaymentResponse, error)
+	VerifySSLCommerzSession(tranID, status string) (*dto.PaymentResponse, error)
 	// Payment methods
 	CreatePaymentMethod(req dto.CreatePaymentMethodRequest) (*dto.PaymentMethodResponse, error)
 	UpdatePaymentMethod(id uint, req dto.UpdatePaymentMethodRequest) (*dto.PaymentMethodResponse, error)
@@ -46,20 +46,36 @@ type Service interface {
 }
 
 type service struct {
-	paymentRepo   Repository
-	bookingRepo   booking.Repository
-	eventRepo     event.Repository
-	settingsSvc   settings.Service
-	currencySvc   currency.Service
-	
+	paymentRepo Repository
+	bookingRepo booking.Repository
+	eventRepo   event.Repository
+	currencySvc currency.Service
 }
 
-func NewService(pr Repository, br booking.Repository, er event.Repository, ss settings.Service, cs currency.Service) Service {
-	return &service{paymentRepo: pr, bookingRepo: br, eventRepo: er, settingsSvc: ss, currencySvc: cs,}
+func NewService(pr Repository, br booking.Repository, er event.Repository, cs currency.Service) Service {
+	return &service{paymentRepo: pr, bookingRepo: br, eventRepo: er, currencySvc: cs}
 }
 
 func generateTransactionID() string {
 	return "TXN_" + strings.ReplaceAll(uuid.New().String(), "-", "")
+}
+
+// getDecryptedCredentials loads payment method by code, checks enable flag,
+// decrypts credentials and returns both the map and the method row.
+func (s *service) getDecryptedCredentials(code string) (map[string]string, *PaymentMethod, error) {
+	pm, err := s.paymentRepo.GetMethodByCode(code)
+	if err != nil {
+		return nil, nil, ErrGatewayDisabled
+	}
+	if !pm.Enable {
+		return nil, nil, ErrGatewayDisabled
+	}
+
+	creds, err := DecryptCredentials(string(pm.Credentials))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decrypt credentials: %w", err)
+	}
+	return creds, &pm, nil
 }
 
 func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dto.CreateCheckoutRequest) (*dto.CheckoutResponse, error) {
@@ -68,21 +84,17 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 		return nil, ErrInvalidMethod
 	}
 
-	// Prefer payment_methods table enable flag when the row exists.
-	if pm, err := s.paymentRepo.GetMethodByCode(string(method)); err == nil {
-		if !pm.Enable {
-			return nil, ErrGatewayDisabled
-		}
+	// Load + decrypt credentials (also checks enable)
+	creds, _, err := s.getDecryptedCredentials(string(method))
+	if err != nil {
+		return nil, err
 	}
 
-	setting, err := s.settingsSvc.GetRaw()
-	if err != nil {
-		return nil, ErrSettingsNotFound
-	}
 	eventData, err := s.eventRepo.GetByID(req.EventID)
 	if err != nil {
 		return nil, fmt.Errorf("event not found: %w", err)
 	}
+
 	currencyCode := s.currencySvc.GetDefaultCode()
 	if currencyCode == "" {
 		currencyCode = "BDT"
@@ -91,25 +103,37 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 	if err := s.eventRepo.DecrementTickets(req.EventID, req.Quantity); err != nil {
 		return nil, booking.ErrNotEnoughTickets
 	}
+
 	totalPrice := float64(req.Quantity) * float64(eventData.Price)
 	reason := "Event ticket booking"
 	if t := eventData.Title.Get("en"); t != "" {
 		reason = fmt.Sprintf("Event ticket: %s (x%d)", t, req.Quantity)
 	}
+
 	b := &booking.Booking{
-		UserID: userID, EventID: req.EventID, Quantity: req.Quantity,
-		TotalPrice: totalPrice, Status: bookingdto.BookingPending,
+		UserID:      userID,
+		EventID:     req.EventID,
+		Quantity:    req.Quantity,
+		TotalPrice:  totalPrice,
+		Status:      bookingdto.BookingPending,
 		BookingCode: "GT-" + uuid.New().String(),
 	}
 	if err := s.bookingRepo.Create(b); err != nil {
 		_ = s.eventRepo.IncrementTickets(req.EventID, req.Quantity)
 		return nil, err
 	}
+
 	tranID := generateTransactionID()
 	p := &Payment{
-		BookingID: b.ID, UserID: userID, EventID: req.EventID,
-		Amount: totalPrice, Currency: currencyCode, Reason: reason,
-		PaymentMethod: method, Status: StatusPending, TransactionID: tranID,
+		BookingID:     b.ID,
+		UserID:        userID,
+		EventID:       req.EventID,
+		Amount:        totalPrice,
+		Currency:      currencyCode,
+		Reason:        reason,
+		PaymentMethod: method,
+		Status:        StatusPending,
+		TransactionID: tranID,
 	}
 	if err := s.paymentRepo.Create(p); err != nil {
 		_ = s.bookingRepo.UpdateStatus(b.ID, bookingdto.BookingCancelled)
@@ -117,52 +141,50 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 		return nil, err
 	}
 
-		
-
 	var checkoutURL, sessionID string
+
 	switch method {
-case MethodStripe:
-	if setting.StripeSecretKey == "" {
-		s.rollback(b, req.EventID, req.Quantity)
-		return nil, ErrMissingGatewayKey
-	}
+	case MethodStripe:
+		secretKey := creds["stripe_secret_key"]
+		successURL := creds["stripe_success_url"]
+		cancelURL := creds["stripe_cancel_url"]
+		clientSideURL := creds["client_side_url"]
 
-	successURL := setting.StripeSuccessURL
-	cancelURL := setting.StripeCancelURL
-
-	if successURL == "" {
-		successURL = setting.ClientSideURL + "/payment/success"
-	}
-	// session_id না থাকলে যোগ করে দাও
-	if !strings.Contains(successURL, "{CHECKOUT_SESSION_ID}") {
-		if strings.Contains(successURL, "?") {
-			successURL += "&session_id={CHECKOUT_SESSION_ID}"
-		} else {
-			successURL += "?session_id={CHECKOUT_SESSION_ID}"
+		if secretKey == "" {
+			s.rollback(b, req.EventID, req.Quantity)
+			return nil, ErrMissingGatewayKey
 		}
-	}
 
-	if cancelURL == "" {
-		cancelURL = setting.ClientSideURL + "/payment/cancel"
-	}
+		if successURL == "" {
+			successURL = clientSideURL + "/payment/success"
+		}
+		if !strings.Contains(successURL, "{CHECKOUT_SESSION_ID}") {
+			if strings.Contains(successURL, "?") {
+				successURL += "&session_id={CHECKOUT_SESSION_ID}"
+			} else {
+				successURL += "?session_id={CHECKOUT_SESSION_ID}"
+			}
+		}
+		if cancelURL == "" {
+			cancelURL = clientSideURL + "/payment/cancel"
+		}
 
-	sc := newStripeClient(setting.StripeSecretKey)
-	sess, err := sc.CreateCheckoutSession(stripeSessionParams{
-		Amount:        int64(eventData.Price * 100),
-		Currency:      strings.ToLower(currencyCode),
-		ProductName:   reason,
-		Quantity:      int64(req.Quantity),
-		SuccessURL:    successURL,
-		CancelURL:     cancelURL,
-		ClientRef:     tranID,
-		CustomerEmail: req.CustomerEmail,
-		Metadata: map[string]string{
-			"payment_id":     strconv.FormatUint(uint64(p.ID), 10),
-			"booking_id":     strconv.FormatUint(uint64(b.ID), 10),
-			"transaction_id": tranID,
-		},
-	})
-	// ... বাকি অংশ একই থাকবে
+		sc := newStripeClient(secretKey)
+		sess, err := sc.CreateCheckoutSession(stripeSessionParams{
+			Amount:        int64(eventData.Price * 100),
+			Currency:      strings.ToLower(currencyCode),
+			ProductName:   reason,
+			Quantity:      int64(req.Quantity),
+			SuccessURL:    successURL,
+			CancelURL:     cancelURL,
+			ClientRef:     tranID,
+			CustomerEmail: req.CustomerEmail,
+			Metadata: map[string]string{
+				"payment_id":     strconv.FormatUint(uint64(p.ID), 10),
+				"booking_id":     strconv.FormatUint(uint64(b.ID), 10),
+				"transaction_id": tranID,
+			},
+		})
 		if err != nil {
 			s.rollback(b, req.EventID, req.Quantity)
 			return nil, err
@@ -171,98 +193,107 @@ case MethodStripe:
 		p.GatewaySessionID, p.CheckoutURL = sess.ID, sess.URL
 
 	case MethodSSLCommerz:
-	// Currency must be BDT for SSLCommerz
-	if strings.ToUpper(currencyCode) != "BDT" {
-		s.rollback(b, req.EventID, req.Quantity)
-		return nil, errors.New("SSLCommerz only supports BDT currency")
-	}
-
-	if setting.SslCommerzeStoreID == "" || setting.SslCommerzeStorePassword == "" {
-		s.rollback(b, req.EventID, req.Quantity)
-		return nil, ErrMissingGatewayKey
-	}
-
-	successURL := setting.SslCommerzeSuccessURL
-	failURL := setting.SslCommerzeFailedURL
-	cancelURL := setting.SslCommerzeCancelURL
-
-	if successURL == "" {
-		successURL = setting.ClientSideURL + "/payment/success"
-	}
-	if failURL == "" {
-		failURL = setting.ClientSideURL + "/payment/failed"
-	}
-	if cancelURL == "" {
-		cancelURL = setting.ClientSideURL + "/payment/cancel"
-	}
-
-	// tran_id যোগ করে দাও (val_id ও status এখনো নেই)
-	if !strings.Contains(successURL, "tran_id=") {
-		if strings.Contains(successURL, "?") {
-			successURL += "&tran_id=" + tranID
-		} else {
-			successURL += "?tran_id=" + tranID
+		if strings.ToUpper(currencyCode) != "BDT" {
+			s.rollback(b, req.EventID, req.Quantity)
+			return nil, errors.New("SSLCommerz only supports BDT currency")
 		}
-	}
-	if !strings.Contains(failURL, "tran_id=") {
-		if strings.Contains(failURL, "?") {
-			failURL += "&tran_id=" + tranID
-		} else {
-			failURL += "?tran_id=" + tranID
+
+		storeID := creds["sslcommerz_store_id"]
+		storePassword := creds["sslcommerz_store_password"]
+		successURL := creds["sslcommerz_success_url"]
+		failURL := creds["sslcommerz_failed_url"]
+		cancelURL := creds["sslcommerz_cancel_url"]
+		clientSideURL := creds["client_side_url"]
+
+		if storeID == "" || storePassword == "" {
+			s.rollback(b, req.EventID, req.Quantity)
+			return nil, ErrMissingGatewayKey
 		}
-	}
-	if !strings.Contains(cancelURL, "tran_id=") {
-		if strings.Contains(cancelURL, "?") {
-			cancelURL += "&tran_id=" + tranID
-		} else {
-			cancelURL += "?tran_id=" + tranID
+
+		if successURL == "" {
+			successURL = clientSideURL + "/payment/success"
 		}
-	}
+		if failURL == "" {
+			failURL = clientSideURL + "/payment/failed"
+		}
+		if cancelURL == "" {
+			cancelURL = clientSideURL + "/payment/cancel"
+		}
 
-	ipnURL := strings.TrimRight(setting.ServerSideURL, "/") + "/api/v1/payments/webhook/sslcommerz"
-	client := newSSLCommerzClient(setting.SslCommerzeStoreID, setting.SslCommerzeStorePassword, true)
+		// append tran_id if missing
+		if !strings.Contains(successURL, "tran_id=") {
+			if strings.Contains(successURL, "?") {
+				successURL += "&tran_id=" + tranID
+			} else {
+				successURL += "?tran_id=" + tranID
+			}
+		}
+		if !strings.Contains(failURL, "tran_id=") {
+			if strings.Contains(failURL, "?") {
+				failURL += "&tran_id=" + tranID
+			} else {
+				failURL += "?tran_id=" + tranID
+			}
+		}
+		if !strings.Contains(cancelURL, "tran_id=") {
+			if strings.Contains(cancelURL, "?") {
+				cancelURL += "&tran_id=" + tranID
+			} else {
+				cancelURL += "?tran_id=" + tranID
+			}
+		}
 
-	initRes, err := client.Initiate(sslInitParams{
-		TotalAmount:     fmt.Sprintf("%.2f", totalPrice),
-		Currency:        currencyCode,
-		TranID:          tranID,
-		SuccessURL:      successURL,
-		FailURL:         failURL,
-		CancelURL:       cancelURL,
-		IPNURL:          ipnURL,
-		CusName:         req.CustomerName,
-		CusEmail:        req.CustomerEmail,
-		CusPhone:        req.CustomerPhoneNumber,
-		CusAdd1:         req.CustomerAddress,
-		CusCity:         req.Country,
-		CusCountry:      req.Country,
-		CusPostcode:     req.Postcode,
-		ProductName:     reason,
-		ProductCategory: "ticket",
-		ProductProfile:  "general",
-		ValueA:          strconv.FormatUint(uint64(b.ID), 10),
-		ValueB:          strconv.FormatUint(uint64(p.ID), 10),
-		ValueC:          strconv.FormatUint(uint64(userID), 10),
-		ValueD:          strconv.FormatUint(uint64(req.EventID), 10),
-	})
-	if err != nil {
-	fmt.Printf("SSLCommerz Initiate Error: %+v\n", err)   // ← এই লাইন যোগ করুন
-	s.rollback(b, req.EventID, req.Quantity)
-	return nil, err
+		ipnURL := strings.TrimRight(clientSideURL, "/") + "/api/v1/payments/webhook/sslcommerz"
+		client := newSSLCommerzClient(storeID, storePassword, true)
 
-	}
+		initRes, err := client.Initiate(sslInitParams{
+			TotalAmount:     fmt.Sprintf("%.2f", totalPrice),
+			Currency:        currencyCode,
+			TranID:          tranID,
+			SuccessURL:      successURL,
+			FailURL:         failURL,
+			CancelURL:       cancelURL,
+			IPNURL:          ipnURL,
+			CusName:         req.CustomerName,
+			CusEmail:        req.CustomerEmail,
+			CusPhone:        req.CustomerPhoneNumber,
+			CusAdd1:         req.CustomerAddress,
+			CusCity:         req.Country,
+			CusCountry:      req.Country,
+			CusPostcode:     req.Postcode,
+			ProductName:     reason,
+			ProductCategory: "ticket",
+			ProductProfile:  "general",
+			ValueA:          strconv.FormatUint(uint64(b.ID), 10),
+			ValueB:          strconv.FormatUint(uint64(p.ID), 10),
+			ValueC:          strconv.FormatUint(uint64(userID), 10),
+			ValueD:          strconv.FormatUint(uint64(req.EventID), 10),
+		})
+		if err != nil {
+			fmt.Printf("SSLCommerz Initiate Error: %+v\n", err)
+			s.rollback(b, req.EventID, req.Quantity)
+			return nil, err
+		}
 
-	checkoutURL, sessionID = initRes.GatewayPageURL, initRes.SessionKey
-	p.GatewaySessionID, p.CheckoutURL = initRes.SessionKey, checkoutURL
+		checkoutURL, sessionID = initRes.GatewayPageURL, initRes.SessionKey
+		p.GatewaySessionID, p.CheckoutURL = initRes.SessionKey, checkoutURL
 	}
 
 	_ = s.paymentRepo.Update(p)
+
 	return &dto.CheckoutResponse{
-		PaymentID: p.ID, BookingID: b.ID, BookingCode: b.BookingCode,
-		Amount: totalPrice, Currency: currencyCode, Reason: reason,
-		PaymentMethod: string(method), TransactionID: tranID,
-		CheckoutURL: checkoutURL, SessionID: sessionID, Status: string(StatusPending),
-		CreatedAt: time.Now().Format("2006-01-02 15:04:05"),
+		PaymentID:     p.ID,
+		BookingID:     b.ID,
+		BookingCode:   b.BookingCode,
+		Amount:        totalPrice,
+		Currency:      currencyCode,
+		Reason:        reason,
+		PaymentMethod: string(method),
+		TransactionID: tranID,
+		CheckoutURL:   checkoutURL,
+		SessionID:     sessionID,
+		Status:        string(StatusPending),
+		CreatedAt:     time.Now().Format("2006-01-02 15:04:05"),
 	}, nil
 }
 
@@ -271,32 +302,19 @@ func (s *service) rollback(b *booking.Booking, eventID uint, qty int) {
 	_ = s.eventRepo.IncrementTickets(eventID, qty)
 }
 
-
-
-
 func (s *service) HandleStripeWebhook(payload []byte, signature string) error {
-var event stripe.Event
+	var event stripe.Event
 	var err error
 
-	setting, err := s.settingsSvc.GetRaw()
+	creds, _, err := s.getDecryptedCredentials("stripe")
 	if err != nil {
-		return ErrSettingsNotFound
+		return err
 	}
 
-	webhookSecret := setting.StripeWebhookSecret
-	if webhookSecret == "" {
-		webhookSecret = os.Getenv("STRIPE_WEBHOOK_SECRET")
-	}
-		// event, err = webhook.ConstructEventWithOptions(
-		// 	payload,
-		// 	signature,
-		// 	webhookSecret,
-		// 	webhook.ConstructEventOptions{
-		// 		IgnoreAPIVersionMismatch: true,
-		// 	},
-		// )
+	webhookSecret := creds["stripe_webhook_secret"]
+
 	if webhookSecret != "" {
-			event, err = webhook.ConstructEventWithOptions(
+		event, err = webhook.ConstructEventWithOptions(
 			payload,
 			signature,
 			webhookSecret,
@@ -305,7 +323,6 @@ var event stripe.Event
 			},
 		)
 		if err != nil {
-			// s.eventRepo.IncrementTickets(s.bookingRepo.)
 			return fmt.Errorf("webhook signature verification failed: %w", err)
 		}
 	} else {
@@ -344,7 +361,6 @@ var event stripe.Event
 		if tranID := stripeMetaTranID(pi.Metadata); tranID != "" {
 			return s.markSuccessByTranID(tranID)
 		}
-		// Fallback: metadata may carry payment_id
 		if idStr, ok := pi.Metadata["payment_id"]; ok && idStr != "" {
 			if id, e := strconv.ParseUint(idStr, 10, 64); e == nil {
 				if p, e2 := s.paymentRepo.GetByID(uint(id)); e2 == nil {
@@ -389,13 +405,12 @@ var event stripe.Event
 		if err := json.Unmarshal(event.Data.Raw, &ch); err != nil {
 			return err
 		}
-		// Treat full/partial refund as cancelled for booking purposes
 		if tranID := stripeMetaTranID(ch.Metadata); tranID != "" {
 			return s.markFailedByTranID(tranID, StatusCancelled)
 		}
 		return nil
 	}
-	// Unknown event types are acknowledged (200) so Stripe does not retry forever.
+
 	return nil
 }
 
@@ -489,19 +504,23 @@ func (s *service) HandleSSLCommerzIPN(ipn dto.SSLCommerzIPN) error {
 	if p.Status == StatusSuccess {
 		return nil
 	}
-	setting, err := s.settingsSvc.GetRaw()
+
+	creds, _, err := s.getDecryptedCredentials("sslcommerz")
 	if err != nil {
 		return err
 	}
+
 	status := strings.ToUpper(strings.TrimSpace(ipn.Status))
 	if ipn.ValID != "" && (status == "VALID" || status == "VALIDATED") {
-		client := newSSLCommerzClient(setting.SslCommerzeStoreID, setting.SslCommerzeStorePassword, true)
+		client := newSSLCommerzClient(creds["sslcommerz_store_id"], creds["sslcommerz_store_password"], true)
 		if val, e := client.Validate(ipn.ValID); e == nil && val != nil {
 			status = strings.ToUpper(val.Status)
 		}
 	}
+
 	raw, _ := json.Marshal(ipn)
 	p.GatewayResponse = string(raw)
+
 	switch status {
 	case "VALID", "VALIDATED":
 		now := time.Now()
@@ -516,7 +535,6 @@ func (s *service) HandleSSLCommerzIPN(ipn dto.SSLCommerzIPN) error {
 	}
 	return s.paymentRepo.Update(p)
 }
-
 
 func (s *service) GetByID(id uint) (*dto.PaymentResponse, error) {
 	p, err := s.paymentRepo.GetByID(id)
@@ -558,35 +576,32 @@ func (s *service) GetByUserID(userID uint) ([]*dto.PaymentResponse, error) {
 	return out, nil
 }
 
-
 func (s *service) VerifyStripeSession(sessionID string) (*dto.PaymentResponse, error) {
-	setting, err := s.settingsSvc.GetRaw()
+	creds, _, err := s.getDecryptedCredentials("stripe")
 	if err != nil {
-		return nil, ErrSettingsNotFound
+		return nil, err
 	}
-	if setting.StripeSecretKey == "" {
+
+	secretKey := creds["stripe_secret_key"]
+	if secretKey == "" {
 		return nil, ErrMissingGatewayKey
 	}
 
-	stripe.Key = setting.StripeSecretKey
+	stripe.Key = secretKey
 	sess, err := session.Get(sessionID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch stripe session: %w", err)
 	}
 
-	// Session paid হলে status update করো
 	if sess.PaymentStatus == stripe.CheckoutSessionPaymentStatusPaid ||
 		sess.Status == stripe.CheckoutSessionStatusComplete {
-
 		if err := s.handleStripeSessionSuccess(sess); err != nil {
 			return nil, err
 		}
 	}
 
-	// Updated payment return করো
 	p, err := s.paymentRepo.GetBySessionID(sessionID)
 	if err != nil {
-		// Fallback: client_reference_id দিয়ে খুঁজে দেখো
 		if sess.ClientReferenceID != "" {
 			p, err = s.paymentRepo.GetByTransactionID(sess.ClientReferenceID)
 		}
@@ -602,13 +617,12 @@ func (s *service) VerifyStripeSession(sessionID string) (*dto.PaymentResponse, e
 	return p.ToResponse(code), nil
 }
 
-func (s *service) VerifySSLCommerzSession(tranID,status string) (*dto.PaymentResponse, error) {
+func (s *service) VerifySSLCommerzSession(tranID, status string) (*dto.PaymentResponse, error) {
 	p, err := s.paymentRepo.GetByTransactionID(tranID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Already success হলে আর কিছু করার দরকার নেই
 	if p.Status == StatusSuccess {
 		code := ""
 		if b, e := s.bookingRepo.GetByID(p.BookingID); e == nil {
@@ -617,33 +631,21 @@ func (s *service) VerifySSLCommerzSession(tranID,status string) (*dto.PaymentRes
 		return p.ToResponse(code), nil
 	}
 
-	// setting, err := s.settingsSvc.GetRaw()
-	// if err != nil {
-	// 	return nil, ErrSettingsNotFound
-	// }
-
 	finalStatus := strings.ToUpper(strings.TrimSpace(status))
-	// StatusSuccess   PaymentStatus = "success"
-	// StatusFailed    PaymentStatus = "failed"
-	// StatusCancelled PaymentStatus = ""
-	
 
 	switch finalStatus {
-	case "success":
+	case "SUCCESS":
 		now := time.Now()
 		p.Status = StatusSuccess
 		p.PaidAt = &now
 		_ = s.paymentRepo.Update(p)
 		_ = s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingConfirmed)
-
-	case "failed":
+	case "FAILED":
 		_ = s.markFailedByTranID(tranID, StatusFailed)
-
-	case "cancelled", "canceled":
+	case "CANCELLED", "CANCELED":
 		_ = s.markFailedByTranID(tranID, StatusCancelled)
 	}
 
-	// Updated payment রিটার্ন করো
 	p, _ = s.paymentRepo.GetByTransactionID(tranID)
 	code := ""
 	if b, e := s.bookingRepo.GetByID(p.BookingID); e == nil {
@@ -651,12 +653,6 @@ func (s *service) VerifySSLCommerzSession(tranID,status string) (*dto.PaymentRes
 	}
 	return p.ToResponse(code), nil
 }
-
-
-
-
-
-
 
 // ---- Payment Method CRUD ----
 
@@ -668,17 +664,26 @@ func (s *service) CreatePaymentMethod(req dto.CreatePaymentMethodRequest) (*dto.
 	if _, err := s.paymentRepo.GetMethodByCode(code); err == nil {
 		return nil, ErrPaymentMethodExists
 	}
+
 	enable := true
 	if req.Enable != nil {
 		enable = *req.Enable
 	}
-	m := &PaymentMethod{
-		Name:   strings.TrimSpace(req.Name),
-		Code:   code,
-		LogoURL:   strings.TrimSpace(req.LogoURL),
-		LogoID:    req.LogoID,
-		Enable: enable,
+
+	encrypted, err := EncryptCredentials(req.Credentials)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt credentials: %w", err)
 	}
+
+	m := &PaymentMethod{
+		Name:        strings.TrimSpace(req.Name),
+		Code:        code,
+		LogoURL:     strings.TrimSpace(req.LogoURL),
+		LogoID:      req.LogoID,
+		Enable:      enable,
+		Credentials: string(encrypted),
+	}
+
 	if err := s.paymentRepo.CreateMethod(m); err != nil {
 		return nil, err
 	}
@@ -690,6 +695,7 @@ func (s *service) UpdatePaymentMethod(id uint, req dto.UpdatePaymentMethodReques
 	if err != nil {
 		return nil, err
 	}
+
 	if req.Name != nil {
 		m.Name = strings.TrimSpace(*req.Name)
 	}
@@ -698,7 +704,6 @@ func (s *service) UpdatePaymentMethod(id uint, req dto.UpdatePaymentMethodReques
 		if code != string(MethodStripe) && code != string(MethodSSLCommerz) {
 			return nil, ErrInvalidMethod
 		}
-		// uniqueness check if code changes
 		if code != m.Code {
 			if existing, e := s.paymentRepo.GetMethodByCode(code); e == nil && existing.ID != m.ID {
 				return nil, ErrPaymentMethodExists
@@ -709,10 +714,21 @@ func (s *service) UpdatePaymentMethod(id uint, req dto.UpdatePaymentMethodReques
 	if req.LogoURL != nil {
 		m.LogoURL = strings.TrimSpace(*req.LogoURL)
 	}
+	if req.LogoID != nil {
+		m.LogoID = *req.LogoID
+	}
 	if req.Enable != nil {
 		m.Enable = *req.Enable
 	}
-	if err := s.paymentRepo.UpdateMethod(m); err != nil {
+	if req.Credentials != nil {
+		encrypted, err := EncryptCredentials(*req.Credentials)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt credentials: %w", err)
+		}
+		m.Credentials = string(encrypted)
+	}
+
+	if err := s.paymentRepo.UpdateMethod(&m); err != nil {
 		return nil, err
 	}
 	return m.ToResponse(), nil

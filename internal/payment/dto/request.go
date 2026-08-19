@@ -12,6 +12,7 @@ type CreateCheckoutRequest struct {
 	CustomerAddress     string `json:"customer_address" validate:"required"`
 	Country             string `json:"country" validate:"required"`
 	Postcode            string `json:"postcode" validate:"required"`
+
 }
 
 type SSLCommerzIPN struct {
@@ -36,6 +37,7 @@ type CreatePaymentMethodRequest struct {
 	LogoURL   string `json:"logo_url" validate:"required"`
 	LogoID    uint `json:"logo_id" validate:"required"`
 	Enable *bool  `json:"enable"`
+	Credentials map[string]string `json:"credentials" validate:"required"`
 }
 
 type UpdatePaymentMethodRequest struct {
@@ -44,4 +46,5 @@ type UpdatePaymentMethodRequest struct {
 	LogoURL   *string `json:"logo_url" validate:"omitempty"`
 	LogoID    *uint `json:"logo_id" validate:"omitempty"`
 	Enable *bool   `json:"enable"`
+	Credentials *map[string]string `json:"credentials" validate:"required"`
 }

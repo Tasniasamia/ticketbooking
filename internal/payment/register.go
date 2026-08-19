@@ -7,7 +7,6 @@ import (
 	"ticketBooking/internal/currency"
 	"ticketBooking/internal/event"
 	middleware "ticketBooking/internal/middlewares"
-	"ticketBooking/internal/settings"
 
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"
@@ -18,7 +17,6 @@ func PaymentRegisterRoutes(api *echo.Group, db *gorm.DB, cfg config.Config) {
 		NewRepository(db),
 		booking.NewRepository(db),
 		event.NewRepository(db),
-		settings.NewService(settings.NewRepository(db)),
 		currency.NewService(currency.NewRepository(db)),			
 		
 	)
@@ -48,8 +46,8 @@ func PaymentRegisterRoutes(api *echo.Group, db *gorm.DB, cfg config.Config) {
 	pm := api.Group("/payment-methods")
 	pm.GET("", h.ListPaymentMethods) // ?all=true needs auth ideally; public returns enabled only
 	pm.GET("/:id", h.GetPaymentMethod)
-	pm.POST("", h.CreatePaymentMethod, middleware.AuthMiddleware(jwtSvc))
-	pm.PUT("/:id", h.UpdatePaymentMethod, middleware.AuthMiddleware(jwtSvc))
-	pm.PATCH("/:id", h.UpdatePaymentMethod, middleware.AuthMiddleware(jwtSvc))
-	pm.DELETE("/:id", h.DeletePaymentMethod, middleware.AuthMiddleware(jwtSvc))
+	pm.POST("", h.CreatePaymentMethod, middleware.AuthMiddleware(jwtSvc),middleware.AdminMiddleware())
+	pm.PUT("/:id", h.UpdatePaymentMethod, middleware.AuthMiddleware(jwtSvc),middleware.AdminMiddleware())
+	pm.PATCH("/:id", h.UpdatePaymentMethod, middleware.AuthMiddleware(jwtSvc),middleware.AdminMiddleware())
+	pm.DELETE("/:id", h.DeletePaymentMethod, middleware.AuthMiddleware(jwtSvc),middleware.AdminMiddleware())
 }

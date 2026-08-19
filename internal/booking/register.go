@@ -11,10 +11,14 @@ import (
 
 func BookingRegisterRoutes(api *echo.Group, db *gorm.DB, cfg config.Config) {
 	svc := NewService(NewRepository(db), event.NewRepository(db))
-	h := NewHandler(svc)
+	h := NewHandler(svc);
 	jwtSvc := auth.NewJWTService(cfg.JwtSecret)
-	g := api.Group("/bookings", middleware.AuthMiddleware(jwtSvc))
+	g := api.Group("/bookings")
 	g.POST("", h.CreateBooking)
-	g.GET("", h.GetMyBookings)
-	g.GET("/:id", h.GetByID)
+	g.GET("", h.GetAllBookings);
+
+    g.GET("/:id", h.GetByID)
+	g.GET("/me", h.GetMyBookings,middleware.AuthMiddleware(jwtSvc));
+
+
 }

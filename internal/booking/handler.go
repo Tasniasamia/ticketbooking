@@ -1,16 +1,33 @@
 package booking
 
 import (
+	// "fmt"
+	"fmt"
 	"net/http"
 	"strconv"
 	"ticketBooking/internal/booking/dto"
+	userDto "ticketBooking/internal/user/dto"
+	"ticketBooking/internal/utils/query"
+
 	"ticketBooking/internal/httpresponse"
+
 	"github.com/labstack/echo/v5"
 )
 
-type Handler struct{ svc Service }
+// type Handler struct{ svc Service }
 
-func NewHandler(svc Service) *Handler { return &Handler{svc: svc} }
+// func NewHandler(svc Service) *Handler { return &Handler{svc: svc} }
+
+type Handler struct {
+	svc *Service
+}
+
+func NewHandler(s *Service) *Handler {
+	return &Handler{
+		svc: s,
+	}
+}
+
 
 func (h *Handler) CreateBooking(c *echo.Context) error {
 	userID, ok := c.Get("user_id").(uint)
@@ -48,12 +65,28 @@ func (h *Handler) CreateBooking(c *echo.Context) error {
 
 func (h *Handler) GetMyBookings(c *echo.Context) error {
 	userID, ok := c.Get("user_id").(uint)
+	fmt.Println("userId is ",userID);
 	if !ok {
+		return c.JSON(http.StatusUnauthorized, httpresponse.Error{
+			Success: false, StatusCode: 401, Error: true, ErrorMessage: "unauthorized for invalid type",
+		})
+	}
+	userRole:=c.Get("user_role")
+
+	// fmt.Println("userRole", userRole)
+
+	if userRole == "" {
 		return c.JSON(http.StatusUnauthorized, httpresponse.Error{
 			Success: false, StatusCode: 401, Error: true, ErrorMessage: "unauthorized",
 		})
 	}
-	res, err := h.svc.GetByUserID(userID)
+	var res []*dto.Response
+	var err error
+	if userRole == userDto.MANAGER {
+		res, err = h.svc.GetByManagerID(userID)
+	} else {
+		res, err = h.svc.GetByUserID(userID)
+	}
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
 			Success: false, StatusCode: 500, Error: true, ErrorMessage: err.Error(),
@@ -79,5 +112,27 @@ func (h *Handler) GetByID(c *echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, httpresponse.Success{
 		Success: true, StatusCode: 200, Message: "Booking fetched", Data: res,
+	})
+}
+
+func (h *Handler) GetAllBookings(c *echo.Context) error {
+	p := query.Parse(c)
+
+	// if err != nil {
+	// 	return c.JSON(http.StatusBadRequest, httpresponse.Error{
+	// 		Success: false, StatusCode: 400, Error: true, ErrorMessage: "invalid query parameters",
+	// 	})
+	// }
+	
+	res, err := h.svc.GetAll(p)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
+			Success: false, StatusCode: 500, Error: true, ErrorMessage: err.Error(),
+		})
+	}
+	// return c.JSON(http.StatusOK, res)
+		return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: http.StatusOK,
+		Message: "Bookings fetched successfully", Data: res,
 	})
 }

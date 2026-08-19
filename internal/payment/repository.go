@@ -26,8 +26,8 @@ type Repository interface {
 	CreateMethod(m *PaymentMethod) error
 	UpdateMethod(m *PaymentMethod) error
 	DeleteMethod(id uint) error
-	GetMethodByID(id uint) (*PaymentMethod, error)
-	GetMethodByCode(code string) (*PaymentMethod, error)
+	GetMethodByID(id uint) (PaymentMethod, error)
+	GetMethodByCode(code string) (PaymentMethod, error)
 	ListMethods(enabledOnly bool) ([]PaymentMethod, error)
 }
 
@@ -101,22 +101,22 @@ func (r *repository) DeleteMethod(id uint) error {
 	return nil
 }
 
-func (r *repository) GetMethodByID(id uint) (*PaymentMethod, error) {
+func (r *repository) GetMethodByID(id uint) (PaymentMethod, error) {
 	var m PaymentMethod
 	err := r.db.First(&m, id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrPaymentMethodNotFound
+		return PaymentMethod{}, ErrPaymentMethodNotFound
 	}
-	return &m, err
+	return m, err
 }
 
-func (r *repository) GetMethodByCode(code string) (*PaymentMethod, error) {
+func (r *repository) GetMethodByCode(code string) (PaymentMethod, error) {
 	var m PaymentMethod
 	err := r.db.Where("code = ?", code).First(&m).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, ErrPaymentMethodNotFound
+		return PaymentMethod{}, ErrPaymentMethodNotFound
 	}
-	return &m, err
+	return m, err
 }
 
 func (r *repository) ListMethods(enabledOnly bool) ([]PaymentMethod, error) {

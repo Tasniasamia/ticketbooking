@@ -3,30 +3,33 @@ package booking
 import (
 	"ticketBooking/internal/booking/dto"
 	"ticketBooking/internal/event"
+	"ticketBooking/internal/httpresponse"
+	"ticketBooking/internal/utils/query"
 
 	"github.com/google/uuid"
 )
 
-type Service interface {
-	CreateBooking(userID uint, req dto.CreateRequest) (*dto.Response, error)
-	GetByID(id uint) (*dto.Response, error)
-	GetByUserID(userID uint) ([]*dto.Response, error)
-}
+// type Service interface {
+// 	CreateBooking(userID uint, req dto.CreateRequest) (*dto.Response, error)
+// 	GetByID(id uint) (*dto.Response, error)
+// 	GetByUserID(userID uint) ([]*dto.Response, error)
+// 	GetByManagerID(managerID uint) ([]*dto.Response, error)
+// }
 
-type service struct {
+type Service struct {
 	bookingRepo Repository
 	eventRepo   event.Repository
 }
 
-func NewService(bookingRepo Repository, eventRepo event.Repository) Service {
-	return &service{bookingRepo: bookingRepo, eventRepo: eventRepo}
+func NewService(bookingRepo Repository, eventRepo event.Repository) *Service {
+	return &Service{bookingRepo: bookingRepo, eventRepo: eventRepo}
 }
 
 func generateBookingCode() string {
 	return "GT-" + uuid.New().String()
 }
 
-func (s *service) CreateBooking(userID uint, req dto.CreateRequest) (*dto.Response, error) {
+func (s *Service) CreateBooking(userID uint, req dto.CreateRequest) (*dto.Response, error) {
 	if err := s.eventRepo.DecrementTickets(req.EventID, req.Quantity); err != nil {
 		return nil, ErrNotEnoughTickets
 	}
@@ -48,7 +51,7 @@ func (s *service) CreateBooking(userID uint, req dto.CreateRequest) (*dto.Respon
 	return b.ToResponse(), nil
 }
 
-func (s *service) GetByID(id uint) (*dto.Response, error) {
+func (s *Service) GetByID(id uint) (*dto.Response, error) {
 	b, err := s.bookingRepo.GetByID(id)
 	if err != nil {
 		return nil, err
@@ -56,7 +59,7 @@ func (s *service) GetByID(id uint) (*dto.Response, error) {
 	return b.ToResponse(), nil
 }
 
-func (s *service) GetByUserID(userID uint) ([]*dto.Response, error) {
+func (s *Service) GetByUserID(userID uint) ([]*dto.Response, error) {
 	list, err := s.bookingRepo.GetByUserID(userID)
 	if err != nil {
 		return nil, err
@@ -66,4 +69,35 @@ func (s *service) GetByUserID(userID uint) ([]*dto.Response, error) {
 		out = append(out, list[i].ToResponse())
 	}
 	return out, nil
+}
+
+func (s *Service) GetByManagerID(managerID uint) ([]*dto.Response, error) {
+	list, err := s.bookingRepo.GetByManagerID(managerID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*dto.Response, 0, len(list))
+	for i := range list {
+		out = append(out, list[i].ToResponse())
+	}
+	return out, nil
+}
+
+func (s *Service)  GetAll(p query.Params) (*httpresponse.PaginatedData, error) {
+	events, total, err := s.bookingRepo.GetAll(p)
+	if err != nil {
+		return nil, err
+	}
+
+	docs := make([]*dto.Response, 0, len(events))
+	for _, e := range events {
+		docs = append(docs, e.ToResponse())
+	}
+
+	meta := httpresponse.BuildPaginationMeta(total, p.Page, p.Limit)
+	return &httpresponse.PaginatedData{
+		Docs:           docs,
+		PaginationMeta: meta,
+	}, nil
+
 }

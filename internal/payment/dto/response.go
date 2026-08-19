@@ -41,6 +41,7 @@ type PaymentMethodResponse struct {
 	LogoURL   string `json:"logo_url"`
 	LogoID    uint   `json:"logo_id"`
 	Enable    bool   `json:"enable"`
+   Credentials map[string]string `json:"credentials" `
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 }

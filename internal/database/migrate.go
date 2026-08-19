@@ -18,7 +18,7 @@ import (
 )
 
 func RunMigrations(db *gorm.DB) {
-	db.AutoMigrate(
+	err:=db.AutoMigrate(
 		&user.User{},
 		&event.Event{},
 		&language.Language{},
@@ -32,4 +32,7 @@ func RunMigrations(db *gorm.DB) {
 		&otp.OTP{},
 		&eventCategory.EventCategory{},
 	)
+	    if err != nil {
+        panic("migration failed: " + err.Error())
+    }
 }

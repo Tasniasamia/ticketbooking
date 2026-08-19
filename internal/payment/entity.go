@@ -3,6 +3,7 @@ package payment
 import (
 	"ticketBooking/internal/payment/dto"
 	"time"
+    // "gorm.io/datatypes"
 
 	"gorm.io/gorm"
 )
@@ -63,24 +64,38 @@ func (p *Payment) ToResponse(bookingCode string) *dto.PaymentResponse {
 
 // PaymentMethod is a configurable gateway entry (name, logo, enable flag).
 // Config credentials still live in settings; only enabled methods are usable at checkout.
+
+
 type PaymentMethod struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+    ID        uint           `gorm:"primaryKey"`
+    CreatedAt time.Time
+    UpdatedAt time.Time
+    DeletedAt gorm.DeletedAt `gorm:"index"`
 
-	Name   string `gorm:"size:100;not null" json:"name"`
-	Code   string `gorm:"size:20;uniqueIndex;not null" json:"code"` // stripe | sslcommerz
-	LogoURL   string `gorm:"type:text" json:"logo_url"`
-	LogoID    uint `gorm:"not null" json:"logo_id"`
-
-	Enable bool   `gorm:"not null;default:true" json:"enable"`
+    Name        string         `gorm:"size:100;not null"`
+    Code        string         `gorm:"size:20;uniqueIndex;not null"`
+    LogoURL     string         `gorm:"type:text"`
+    LogoID      uint           `gorm:"not null"`
+    Enable      bool           `gorm:"not null;default:true"`
+    Credentials string `gorm:"type:text"`
 }
+
 
 func (PaymentMethod) TableName() string { return "payment_methods" }
 
 func (m *PaymentMethod) ToResponse() *dto.PaymentMethodResponse {
-	return &dto.PaymentMethodResponse{
+	// return &dto.PaymentMethodResponse{
+	// 	ID:        m.ID,
+	// 	Name:      m.Name,
+	// 	Code:      m.Code,
+	// 	LogoURL:   m.LogoURL,
+	// 	LogoID:    m.LogoID,
+	// 	Enable:    m.Enable,
+	// 	Credentials: m.Credentials,
+	// 	CreatedAt: m.CreatedAt.Format("2006-01-02 15:04:05"),
+	// 	UpdatedAt: m.UpdatedAt.Format("2006-01-02 15:04:05"),
+	// }
+	resp := &dto.PaymentMethodResponse{
 		ID:        m.ID,
 		Name:      m.Name,
 		Code:      m.Code,
@@ -90,4 +105,11 @@ func (m *PaymentMethod) ToResponse() *dto.PaymentMethodResponse {
 		CreatedAt: m.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt: m.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
+
+	if m.Credentials != "" {
+		if creds, err := DecryptCredentials(m.Credentials); err == nil {
+			resp.Credentials = creds
+		}
+	}
+	return resp
 }
