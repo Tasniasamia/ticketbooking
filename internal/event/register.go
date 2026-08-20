@@ -22,6 +22,7 @@ func EventRegisterRoutes(e *echo.Group, db *gorm.DB, config config.Config) {
 	eventRoute.POST("", NewHandler.CreateEvent,middleware.AuthMiddleware(JWTService),middleware.ManagerMiddleware());
 	eventRoute.GET("", NewHandler.GetAllEvents);
 	eventRoute.GET("/:id", NewHandler.GetEventByID);
+	eventRoute.GET("/admin/:id", NewHandler.GetEventByIDAdmin,middleware.AuthMiddleware(JWTService),middleware.AdminMiddleware());
 	eventRoute.GET("/myEvents", NewHandler.GetMyEvents,middleware.AuthMiddleware(JWTService));
 	eventRoute.PUT("/:id", NewHandler.UpdateEvent,middleware.AuthMiddleware(JWTService),middleware.ManagerMiddleware());
 	eventRoute.DELETE("/:id", NewHandler.DeleteEvent,middleware.AuthMiddleware(JWTService),middleware.ManagerMiddleware());

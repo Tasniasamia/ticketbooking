@@ -70,7 +70,13 @@ func (s *Service) GetEventByID(eventId uint, lang string) (*dto.RawResponse, err
 	}
 	return event.ToRawResponse(), nil
 }
-
+func (s *Service) GetEventByIDAdmin(eventId uint) (*dto.RawResponse, error) {
+	event, err := s.repo.GetByIDAdmin(eventId)
+	if err != nil {
+		return nil, err
+	}
+	return event.ToRawResponse(), nil
+}
 func (s *Service) UpdateEvent(eventId uint, req *dto.UpdateRequest) (*dto.RawResponse, error) {
 	event, err := s.repo.GetByID(eventId)
 	if err != nil {

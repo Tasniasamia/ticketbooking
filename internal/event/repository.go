@@ -10,6 +10,7 @@ type Repository interface {
 	Create(event *Event) error
 	GetAll(p query.Params,lang string) ([]*Event, int64, error)
 	GetByID(eventId uint) (*Event, error)
+	GetByIDAdmin(eventId uint) (*Event, error)
 	Update(event *Event) error
 	DecrementTickets(eventID uint, quantity int) error
 	IncrementTickets(eventID uint, quantity int) error
@@ -59,6 +60,21 @@ func (r *repository) GetAll(p query.Params, lang string) ([]*Event, int64, error
 }
 
 func (r *repository) GetByID(eventId uint) (*Event, error) {
+	var event Event
+
+	err := r.db.
+	    Where("status = ?", "approved").
+		Preload("Manager").
+		Preload("Category").
+		First(&event, eventId).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &event, nil
+}
+func (r *repository) GetByIDAdmin(eventId uint) (*Event, error) {
 	var event Event
 
 	err := r.db.

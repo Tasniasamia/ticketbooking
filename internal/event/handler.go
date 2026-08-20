@@ -215,6 +215,30 @@ func (h *handler) GetEventByID(c *echo.Context) error {
 	})
 }
 
+func (h *handler) GetEventByIDAdmin(c *echo.Context) error {
+	eventId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: http.StatusBadRequest, Error: true,
+			ErrorMessage: "Invalid event ID",
+		})
+	}
+
+	res, err := h.service.GetEventByIDAdmin(uint(eventId))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
+			Success: false, StatusCode: http.StatusInternalServerError, Error: true,
+			ErrorMessage: "Failed to fetch event", ErrorDetails: err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: http.StatusOK,
+		Message: "Event fetched successfully", Data: res,
+	})
+}
+
+
 func (h *handler) GetMyEvents(c *echo.Context) error {
 	managerID, ok := c.Get("user_id").(uint)
 	if !ok {
