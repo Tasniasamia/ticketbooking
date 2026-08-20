@@ -2,6 +2,7 @@ package payment
 
 import (
 	"errors"
+	"strings"
 	"ticketBooking/internal/utils/query"
 
 	"gorm.io/gorm"
@@ -13,6 +14,13 @@ var (
 	ErrPaymentMethodExists   = errors.New("payment method with this code already exists")
 )
 
+// PaymentAmountRow — status + currency grouped sum for aggregation.
+type PaymentAmountRow struct {
+	Status   string  `json:"status"`
+	Currency string  `json:"currency"`
+	Total    float64 `json:"total"`
+}
+
 type Repository interface {
 	// Payments
 	Create(p *Payment) error
@@ -22,9 +30,13 @@ type Repository interface {
 	GetBySessionID(sessionID string) (*Payment, error)
 	GetByBookingID(bookingID uint) (*Payment, error)
 	GetByUserID(userID uint) ([]Payment, error)
-    GetAllPayments(params query.Params) ([]*Payment, int64, error)
+	GetAllPayments(params query.Params) ([]*Payment, int64, error)
 	GetManagerPayments(params query.Params, managerID uint) ([]*Payment, int64, error)
 	GetUserPayments(params query.Params, userID uint) ([]*Payment, int64, error)
+
+	AggregateAllPayments(params query.Params) ([]PaymentAmountRow, error)
+	AggregateManagerPayments(params query.Params, managerID uint) ([]PaymentAmountRow, error)
+	AggregateUserPayments(params query.Params, userID uint) ([]PaymentAmountRow, error)
 
 	// Payment methods
 	CreateMethod(m *PaymentMethod) error
@@ -53,7 +65,7 @@ func (r *repository) GetByID(id uint) (*Payment, error) {
 
 func (r *repository) GetByTransactionID(tranID string) (*Payment, error) {
 	var p Payment
-	err := r.db.Where("transaction_id = ?", tranID).First(&p).Error
+	err := r.db.Where("transaction_id = ?", tranID).Order("created_at DESC").Preload("Bookings").Preload("UserInfo").Preload("EventInfo").Preload("EventInfo.Manager").Preload("EventInfo.Category").First(&p).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrPaymentNotFound
 	}
@@ -62,7 +74,7 @@ func (r *repository) GetByTransactionID(tranID string) (*Payment, error) {
 
 func (r *repository) GetBySessionID(sessionID string) (*Payment, error) {
 	var p Payment
-	err := r.db.Where("gateway_session_id = ?", sessionID).First(&p).Error
+	err := r.db.Where("gateway_session_id = ?", sessionID).Order("created_at DESC").Preload("Bookings").Preload("UserInfo").Preload("EventInfo").Preload("EventInfo.Manager").Preload("EventInfo.Category").First(&p).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrPaymentNotFound
 	}
@@ -71,7 +83,7 @@ func (r *repository) GetBySessionID(sessionID string) (*Payment, error) {
 
 func (r *repository) GetByBookingID(bookingID uint) (*Payment, error) {
 	var p Payment
-	err := r.db.Where("booking_id = ?", bookingID).First(&p).Error
+	err := r.db.Where("booking_id = ?", bookingID).Order("created_at DESC").Preload("Bookings").Preload("UserInfo").Preload("EventInfo").Preload("EventInfo.Manager").Preload("EventInfo.Category").First(&p).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrPaymentNotFound
 	}
@@ -80,7 +92,7 @@ func (r *repository) GetByBookingID(bookingID uint) (*Payment, error) {
 
 func (r *repository) GetByUserID(userID uint) ([]Payment, error) {
 	var list []Payment
-	err := r.db.Where("user_id = ?", userID).Order("created_at DESC").Find(&list).Error
+	err := r.db.Where("user_id = ?", userID).Order("created_at DESC").Order("created_at DESC").Preload("Bookings").Preload("UserInfo").Preload("EventInfo").Preload("EventInfo.Manager").Preload("EventInfo.Category").Find(&list).Error
 	return list, err
 }
 
@@ -152,6 +164,56 @@ func (r *repository) GetUserPayments(params query.Params, userID uint) ([]*Payme
 	}
 
 	return list, total, nil
+}
+
+func applyAggregateFilters(db *gorm.DB, params query.Params, searchFields []string) *gorm.DB {
+	if params.Search != "" && len(searchFields) > 0 {
+		var conditions []string
+		var args []interface{}
+		for _, field := range searchFields {
+			conditions = append(conditions, field+" ILIKE ?")
+			args = append(args, "%"+params.Search+"%")
+		}
+		if len(conditions) > 0 {
+			db = db.Where(strings.Join(conditions, " OR "), args...)
+		}
+	}
+	if len(params.Filters) > 0 {
+		for col, val := range params.Filters {
+			db = db.Where(col+" = ?", val)
+		}
+	}
+	return db
+}
+
+func (r *repository) AggregateAllPayments(params query.Params) ([]PaymentAmountRow, error) {
+	var rows []PaymentAmountRow
+	db := r.db.Model(&Payment{}).
+		Select("status, currency, COALESCE(SUM(amount), 0) as total")
+	db = applyAggregateFilters(db, params, []string{"transaction_id", "status"})
+	err := db.Group("status, currency").Scan(&rows).Error
+	return rows, err
+}
+
+func (r *repository) AggregateManagerPayments(params query.Params, managerID uint) ([]PaymentAmountRow, error) {
+	var rows []PaymentAmountRow
+	db := r.db.Model(&Payment{}).
+		Select("payments.status as status, payments.currency as currency, COALESCE(SUM(payments.amount), 0) as total").
+		Joins("JOIN events ON events.id = payments.event_id").
+		Where("events.manager_id = ?", managerID)
+	db = applyAggregateFilters(db, params, []string{"payments.transaction_id", "payments.status"})
+	err := db.Group("payments.status, payments.currency").Scan(&rows).Error
+	return rows, err
+}
+
+func (r *repository) AggregateUserPayments(params query.Params, userID uint) ([]PaymentAmountRow, error) {
+	var rows []PaymentAmountRow
+	db := r.db.Model(&Payment{}).
+		Select("status, currency, COALESCE(SUM(amount), 0) as total").
+		Where("user_id = ?", userID)
+	db = applyAggregateFilters(db, params, []string{"transaction_id", "status"})
+	err := db.Group("status, currency").Scan(&rows).Error
+	return rows, err
 }
 
 func (r *repository) CreateMethod(m *PaymentMethod) error {

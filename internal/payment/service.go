@@ -29,6 +29,12 @@ var (
 	ErrMissingGatewayKey = errors.New("payment gateway credentials missing")
 )
 
+// PaymentsListData — list + pagination + payment aggregation (default currency).
+type PaymentsListData struct {
+	*httpresponse.PaginatedData
+	Payment dto.PaymentSummary `json:"payment"`
+}
+
 type Service interface {
 	CreateCheckout(userID uint, userName, userEmail string, req dto.CreateCheckoutRequest) (*dto.CheckoutResponse, error)
 	HandleStripeWebhook(payload []byte, signature string) error
@@ -38,9 +44,9 @@ type Service interface {
 	GetByUserID(userID uint) ([]*dto.PaymentResponse, error)
 	VerifyStripeSession(sessionID string) (*dto.PaymentResponse, error)
 	VerifySSLCommerzSession(tranID, status string) (*dto.PaymentResponse, error)
-	GetUserPayments(params query.Params, userID uint) (*httpresponse.PaginatedData, error)
-	GetManagerPayments(params query.Params, managerID uint) (*httpresponse.PaginatedData, error)
-	GetAllPayments(params query.Params) (*httpresponse.PaginatedData, error)
+	GetUserPayments(params query.Params, userID uint) (*PaymentsListData, error)
+	GetManagerPayments(params query.Params, managerID uint) (*PaymentsListData, error)
+	GetAllPayments(params query.Params) (*PaymentsListData, error)
 	// Payment methods
 	CreatePaymentMethod(req dto.CreatePaymentMethodRequest) (*dto.PaymentMethodResponse, error)
 	UpdatePaymentMethod(id uint, req dto.UpdatePaymentMethodRequest) (*dto.PaymentMethodResponse, error)
@@ -99,7 +105,11 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 		return nil, fmt.Errorf("event not found: %w", err)
 	}
 
-	currencyCode := s.currencySvc.GetDefaultCode()
+	// Payment currency = event's price currency; fallback to site default
+	currencyCode := strings.ToUpper(strings.TrimSpace(eventData.Currency))
+	if currencyCode == "" {
+		currencyCode = s.currencySvc.GetDefaultCode()
+	}
 	if currencyCode == "" {
 		currencyCode = "BDT"
 	}
@@ -199,7 +209,13 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 	case MethodSSLCommerz:
 		if strings.ToUpper(currencyCode) != "BDT" {
 			s.rollback(b, req.EventID, req.Quantity)
-			return nil, errors.New("SSLCommerz only supports BDT currency")
+			converted, err := s.currencySvc.Convert(totalPrice, strings.ToUpper(currencyCode), "BDT")
+			if err != nil {
+				return nil, errors.New("Failed to  BDT currency")
+			}
+			totalPrice = converted
+			currencyCode = "BDT"
+
 		}
 
 		storeID := creds["sslcommerz_store_id"]
@@ -658,8 +674,7 @@ func (s *service) VerifySSLCommerzSession(tranID, status string) (*dto.PaymentRe
 	return p.ToResponse(code), nil
 }
 
-
-func (s *service) GetAllPayments(params query.Params) (*httpresponse.PaginatedData, error) {
+func (s *service) GetAllPayments(params query.Params) (*PaymentsListData, error) {
 	events, total, err := s.paymentRepo.GetAllPayments(params)
 	if err != nil {
 		return nil, err
@@ -670,17 +685,23 @@ func (s *service) GetAllPayments(params query.Params) (*httpresponse.PaginatedDa
 		docs = append(docs, e.ToRawResponse())
 	}
 
-	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
-	return &httpresponse.PaginatedData{
-		Docs:           docs,
-		PaginationMeta: meta,
-	}, nil
+	rows, err := s.paymentRepo.AggregateAllPayments(params)
+	if err != nil {
+		return nil, err
+	}
+	summary := s.buildPaymentSummary(rows)
 
+	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
+	return &PaymentsListData{
+		PaginatedData: &httpresponse.PaginatedData{
+			Docs:           docs,
+			PaginationMeta: meta,
+		},
+		Payment: summary,
+	}, nil
 }
 
-
-	
-func (s *service) GetManagerPayments(params query.Params,managerID uint) (*httpresponse.PaginatedData, error) {
+func (s *service) GetManagerPayments(params query.Params, managerID uint) (*PaymentsListData, error) {
 	events, total, err := s.paymentRepo.GetManagerPayments(params, managerID)
 	if err != nil {
 		return nil, err
@@ -691,18 +712,23 @@ func (s *service) GetManagerPayments(params query.Params,managerID uint) (*httpr
 		docs = append(docs, e.ToRawResponse())
 	}
 
-	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
-	return &httpresponse.PaginatedData{
-		Docs:           docs,
-		PaginationMeta: meta,
-	}, nil
-
+	rows, err := s.paymentRepo.AggregateManagerPayments(params, managerID)
+	if err != nil {
+		return nil, err
 	}
+	summary := s.buildPaymentSummary(rows)
 
+	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
+	return &PaymentsListData{
+		PaginatedData: &httpresponse.PaginatedData{
+			Docs:           docs,
+			PaginationMeta: meta,
+		},
+		Payment: summary,
+	}, nil
+}
 
-
-	
-func (s *service) GetUserPayments(params query.Params,userID uint) (*httpresponse.PaginatedData, error) {
+func (s *service) GetUserPayments(params query.Params, userID uint) (*PaymentsListData, error) {
 	events, total, err := s.paymentRepo.GetUserPayments(params, userID)
 	if err != nil {
 		return nil, err
@@ -713,37 +739,68 @@ func (s *service) GetUserPayments(params query.Params,userID uint) (*httprespons
 		docs = append(docs, e.ToRawResponse())
 	}
 
-	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
-	return &httpresponse.PaginatedData{
-		Docs:           docs,
-		PaginationMeta: meta,
-	}, nil
+	rows, err := s.paymentRepo.AggregateUserPayments(params, userID)
+	if err != nil {
+		return nil, err
+	}
+	summary := s.buildPaymentSummary(rows)
 
+	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
+	return &PaymentsListData{
+		PaginatedData: &httpresponse.PaginatedData{
+			Docs:           docs,
+			PaginationMeta: meta,
+		},
+		Payment: summary,
+	}, nil
+}
+
+// toDefaultCurrency converts amount from `from` into site default currency via currency.Service.Convert.
+func (s *service) toDefaultCurrency(amount float64, from string) float64 {
+	def := s.currencySvc.GetDefaultCode()
+	if def == "" {
+		def = "BDT"
+	}
+	from = strings.ToUpper(strings.TrimSpace(from))
+	if from == "" {
+		from = def
+	}
+	if strings.EqualFold(from, def) {
+		return amount
+	}
+	converted, err := s.currencySvc.Convert(amount, from, def)
+	if err != nil {
+		return amount
+	}
+	return converted
+}
+
+func (s *service) buildPaymentSummary(rows []PaymentAmountRow) dto.PaymentSummary {
+	def := s.currencySvc.GetDefaultCode()
+	if def == "" {
+		def = "BDT"
 	}
 
+	var pending, paid float64
+	for _, row := range rows {
+		amt := s.toDefaultCurrency(row.Total, row.Currency)
+		switch PaymentStatus(strings.ToLower(strings.TrimSpace(row.Status))) {
+		case StatusPending:
+			pending += amt
+		case StatusSuccess:
+			paid += amt
+		}
+	}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	return dto.PaymentSummary{
+		Pending:  pending,
+		Paid:     paid,
+		Total:    pending + paid,
+		Currency: def,
+	}
+}
 
 // ---- Payment Method CRUD ----
-	
 
 func (s *service) CreatePaymentMethod(req dto.CreatePaymentMethodRequest) (*dto.PaymentMethodResponse, error) {
 	code := strings.ToLower(strings.TrimSpace(req.Code))

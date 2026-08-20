@@ -21,6 +21,7 @@ type Event struct {
 	TotalTickets     int                  `json:"total_tickets" gorm:"not null"`
 	AvailableTickets int                  `json:"available_tickets" gorm:"not null"`
 	Price            int                  `json:"price" gorm:"not null"`
+	Currency         string               `json:"currency" gorm:"size:10;not null;default:'BDT'"` // price currency code (e.g. BDT, USD)
 
 	// --- Manager relation ---
 	ManagerID uint      `json:"manager_id" gorm:"not null;index"`
@@ -46,6 +47,7 @@ func (e *Event) ToResponse() *dto.RawResponse {
 		TotalTickets:     e.TotalTickets,
 		AvailableTickets: e.AvailableTickets,
 		Price:            e.Price,
+		Currency:         e.Currency,
 		CreatedAt:        e.CreatedAt,
 		ManagerID:        e.ManagerID,
 		CategoryID:       e.CategoryID,
@@ -93,6 +95,7 @@ func (e *Event) ToRawResponse() *dto.RawResponse {
 		TotalTickets:     e.TotalTickets,
 		AvailableTickets: e.AvailableTickets,
 		Price:            e.Price,
+		Currency:         e.Currency,
 		CreatedAt:        e.CreatedAt,
 		ManagerID:        e.ManagerID,
 		CategoryID:       e.CategoryID,

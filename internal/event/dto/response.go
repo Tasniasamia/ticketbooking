@@ -39,6 +39,7 @@ type Response struct {
 	TotalTickets     int                  `json:"total_tickets"`
 	AvailableTickets int                  `json:"available_tickets"`
 	Price            int                  `json:"price"`
+	Currency         string               `json:"currency"`
 	CreatedAt        time.Time            `json:"created_at"`
 	ThumbnailImage   media.MediaImage     `json:"thumbnail_image" validate:"required"`
 	Images           media.MediaImageList `json:"images"`
@@ -61,6 +62,7 @@ type RawResponse struct {
 	TotalTickets     int                  `json:"total_tickets"`
 	AvailableTickets int                  `json:"available_tickets"`
 	Price            int                  `json:"price"`
+	Currency         string               `json:"currency"`
 	CreatedAt        time.Time            `json:"created_at"`
 	ThumbnailImage   media.MediaImage     `json:"thumbnail_image" validate:"required"`
 	Images           media.MediaImageList `json:"images"`

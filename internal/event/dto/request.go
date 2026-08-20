@@ -23,6 +23,7 @@ type CreateRequest struct {
 	StartsAt       time.Time         `json:"starts_at" validate:"required"`
 	TotalTickets   int               `json:"total_tickets" validate:"required,gt=0"`
 	Price          int               `json:"price" validate:"gte=0"`
+	Currency       string            `json:"currency" validate:"required,min=3,max=10"` // e.g. BDT, USD, EUR
 	ThumbnailImage media.MediaImage     `json:"thumbnail_image" validate:"required"`
 	Images         media.MediaImageList `json:"images"`
 	ManagerID      uint              `json:"manager_id" gorm:"not null;index"`
@@ -36,6 +37,7 @@ type UpdateRequest struct {
 	Location       map[string]string `json:"location"`
 	StartsAt       time.Time         `json:"starts_at"`
 	Price          int               `json:"price" validate:"omitempty,gte=0"`
+	Currency       string            `json:"currency" validate:"omitempty,min=3,max=10"`
 	ThumbnailImage media.MediaImage     `json:"thumbnail_image" validate:"required"`
 	Images         media.MediaImageList `json:"images"`
 	ManagerID      uint              `json:"manager_id" gorm:"not null;index"`

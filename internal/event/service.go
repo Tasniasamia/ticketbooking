@@ -2,6 +2,7 @@ package event
 
 import (
 	"errors"
+	"strings"
 	"ticketBooking/internal/event/dto"
 	"ticketBooking/internal/httpresponse"
 	"ticketBooking/internal/user"
@@ -19,6 +20,11 @@ func NewEventService(repo Repository,userRepo user.Repository) *Service {
 }
 
 func (s *Service) CreateEvent(req *dto.CreateRequest) (*dto.RawResponse, error) {
+	currency := strings.ToUpper(strings.TrimSpace(req.Currency))
+	if currency == "" {
+		currency = "BDT"
+	}
+
 	event := &Event{
 		Title:            i18n.LocalizedString(req.Title),
 		Description:      i18n.LocalizedString(req.Description),
@@ -27,6 +33,7 @@ func (s *Service) CreateEvent(req *dto.CreateRequest) (*dto.RawResponse, error) 
 		TotalTickets:     req.TotalTickets,
 		AvailableTickets: req.TotalTickets,
 		Price:            req.Price,
+		Currency:         currency,
 		ThumbnailImage:    req.ThumbnailImage,
 		Images:             req.Images,
 		ManagerID:          req.ManagerID,
@@ -89,6 +96,9 @@ func (s *Service) UpdateEvent(eventId uint, req *dto.UpdateRequest) (*dto.RawRes
 	event.Location = i18n.LocalizedString(req.Location)
 	event.StartsAt = req.StartsAt
 	event.Price = req.Price
+	if c := strings.ToUpper(strings.TrimSpace(req.Currency)); c != "" {
+		event.Currency = c
+	}
 	event.ThumbnailImage = req.ThumbnailImage
 	event.Images = req.Images
 

@@ -57,6 +57,7 @@ type EventInfo struct {
 	TotalTickets     int                  `json:"total_tickets"`
 	AvailableTickets int                  `json:"available_tickets"`
 	Price            int                  `json:"price"`
+	Currency         string               `json:"currency"`
 	CreatedAt        time.Time            `json:"created_at"`
 	ThumbnailImage   media.MediaImage     `json:"thumbnail_image" validate:"required"`
 	Images           media.MediaImageList `json:"images"`
@@ -99,4 +100,13 @@ type PaymentMethodResponse struct {
    Credentials map[string]string `json:"credentials" `
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
+}
+
+// PaymentSummary — amounts converted to site default currency.
+// pending = status pending sum, paid = status success sum, total = pending + paid.
+type PaymentSummary struct {
+	Pending  float64 `json:"pending"`
+	Paid     float64 `json:"paid"`
+	Total    float64 `json:"total"`
+	Currency string  `json:"currency"` // default currency code
 }
