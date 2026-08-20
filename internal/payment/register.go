@@ -27,7 +27,12 @@ func PaymentRegisterRoutes(api *echo.Group, db *gorm.DB, cfg config.Config) {
 	// Checkout & payment queries (auth)
 	g.POST("/checkout", h.CreateCheckout, middleware.AuthMiddleware(jwtSvc))
 	g.GET("", h.GetMyPayments, middleware.AuthMiddleware(jwtSvc))
-	g.GET("/:id", h.GetPayment, middleware.AuthMiddleware(jwtSvc))
+    g.GET("/manager", h.GetManagementPayments, middleware.AuthMiddleware(jwtSvc),middleware.ManagerMiddleware());
+	g.GET("/admin", h.GetAllPayments, middleware.AuthMiddleware(jwtSvc),middleware.AdminMiddleware());
+    g.GET("/user", h.GetUserPayments, middleware.AuthMiddleware(jwtSvc));
+	g.GET("/:id", h.GetPayment, middleware.AuthMiddleware(jwtSvc));
+	
+
 	g.GET("/transaction/:transaction_id", h.GetByTransactionID, middleware.AuthMiddleware(jwtSvc))
     g.GET("/verify-session", h.VerifyStripeSession);
 	// register.go
@@ -35,7 +40,7 @@ func PaymentRegisterRoutes(api *echo.Group, db *gorm.DB, cfg config.Config) {
 	// Webhooks (no auth — verified by signature / IPN body)
 	g.POST("/webhook/stripe", h.StripeWebhook)
 	g.POST("/webhook/sslcommerz", h.SSLCommerzIPN)
-
+  
 
 
 

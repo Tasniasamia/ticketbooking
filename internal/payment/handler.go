@@ -8,6 +8,7 @@ import (
 
 	"ticketBooking/internal/httpresponse"
 	"ticketBooking/internal/payment/dto"
+	"ticketBooking/internal/utils/query"
 
 	"github.com/labstack/echo/v5"
 )
@@ -132,6 +133,50 @@ func (h *handler) VerifySSLCommerzSession(c *echo.Context) error {
 		Data:    res,
 	})
 }
+
+func (h *handler) GetAllPayments(c *echo.Context) error {
+
+	params := query.Parse(c)
+    res, err := h.service.GetAllPayments(params)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{Success: false, StatusCode: 500, Error: true, ErrorMessage: err.Error()})
+	}
+	return c.JSON(http.StatusOK, httpresponse.Success{Success: true, StatusCode: 200, Message: "Payments fetched", Data: res})
+}
+
+func (h *handler) GetUserPayments(c *echo.Context) error {
+    userID, ok := c.Get("user_id").(uint)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, httpresponse.Error{Success: false, StatusCode: 401, Error: true, ErrorMessage: "unauthorized User"})
+	}
+    params := query.Parse(c)
+    res, err := h.service.GetUserPayments(params, userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{Success: false, StatusCode: 500, Error: true, ErrorMessage: err.Error()})
+	}
+	return c.JSON(http.StatusOK, httpresponse.Success{Success: true, StatusCode: 200, Message: "Payments fetched", Data: res})
+}
+
+func (h *handler) GetManagementPayments(c *echo.Context) error {
+    managerId, ok := c.Get("user_id").(uint)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, httpresponse.Error{Success: false, StatusCode: 401, Error: true, ErrorMessage: "unauthorized Manager"})
+	}
+    params := query.Parse(c)
+    res, err := h.service.GetManagerPayments(params, managerId)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{Success: false, StatusCode: 500, Error: true, ErrorMessage: err.Error()})
+	}
+	return c.JSON(http.StatusOK, httpresponse.Success{Success: true, StatusCode: 200, Message: "Payments fetched", Data: res})
+}
+
+
+
+
+
+
+
+
 
 // ---- Payment Method handlers ----
 

@@ -1,5 +1,15 @@
 package dto
 
+import (
+	bookingDto "ticketBooking/internal/booking/dto"
+	eventDto "ticketBooking/internal/event/dto"
+	"ticketBooking/internal/media"
+	userDto "ticketBooking/internal/user/dto"
+	"ticketBooking/internal/utils/i18n"
+
+	"time"
+)
+
 type CheckoutResponse struct {
 	PaymentID     uint    `json:"payment_id"`
 	BookingID     uint    `json:"booking_id"`
@@ -13,6 +23,46 @@ type CheckoutResponse struct {
 	SessionID     string  `json:"session_id,omitempty"`
 	Status        string  `json:"status"`
 	CreatedAt     string  `json:"created_at"`
+}
+type UserInfo struct {
+	ID             uint         `json:"id"`
+	Name           string       `json:"name"`
+	Email          string       `json:"email"`
+	Role           userDto.RoleType `json:"role"`
+	ProfileImage   string       `json:"profile_image,omitempty"`
+	ProfileImageId uint         `json:"profile_image_id,omitempty"`
+	PhoneNumber    string       `json:"phone_number,omitempty"`
+	Country        string       `json:"country,omitempty"`
+	Status         string       `json:"status,omitempty"`
+}
+
+type BookingInfo struct{
+	ID          uint              `gorm:"primaryKey" json:"id"`
+	UserID      uint              `gorm:"not null;index" json:"user_id"`
+	EventID     uint              `gorm:"not null;index" json:"event_id"`
+	Quantity    int               `gorm:"not null" json:"quantity"`
+	TotalPrice  float64           `gorm:"not null" json:"total_price"`
+	Status      bookingDto.BookingStatus `gorm:"type:varchar(20);not null;default:'pending'" json:"status"`
+	BookingCode string            `gorm:"uniqueIndex;size:50" json:"booking_code"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
+}
+
+type EventInfo struct {
+	ID               uint                 `json:"id"`
+	Title            i18n.LocalizedString               `json:"title"`
+	Description      i18n.LocalizedString               `json:"description"`
+	Location         i18n.LocalizedString               `json:"location"`
+	StartsAt         time.Time            `json:"starts_at"`
+	TotalTickets     int                  `json:"total_tickets"`
+	AvailableTickets int                  `json:"available_tickets"`
+	Price            int                  `json:"price"`
+	CreatedAt        time.Time            `json:"created_at"`
+	ThumbnailImage   media.MediaImage     `json:"thumbnail_image" validate:"required"`
+	Images           media.MediaImageList `json:"images"`
+	ManagerID        uint                 `json:"manager_id"`
+	Manager          *UserInfo              `json:"manager,omitempty"` // ← এখানে
+	Status         eventDto.StatusType       `json:"status" gorm:"type:varchar(20);not null;default:'pending'"`
 }
 
 type PaymentResponse struct {
@@ -32,6 +82,11 @@ type PaymentResponse struct {
 	PaidAt           string  `json:"paid_at,omitempty"`
 	CreatedAt        string  `json:"created_at"`
 	UpdatedAt        string  `json:"updated_at"`
+	Bookings         BookingInfo    `json:"bookings"`
+
+	UserInfo       UserInfo       `json:"user_info"`
+    
+	EventInfo     EventInfo     `json:"event_info"`
 }
 
 type PaymentMethodResponse struct {

@@ -12,13 +12,14 @@ import (
 	bookingdto "ticketBooking/internal/booking/dto"
 	"ticketBooking/internal/currency"
 	"ticketBooking/internal/event"
+	"ticketBooking/internal/httpresponse"
 	"ticketBooking/internal/payment/dto"
 
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/checkout/session"
 	"github.com/stripe/stripe-go/v82/webhook"
-	// "gorm.io/datatypes"
+	"ticketBooking/internal/utils/query"
 )
 
 var (
@@ -37,6 +38,9 @@ type Service interface {
 	GetByUserID(userID uint) ([]*dto.PaymentResponse, error)
 	VerifyStripeSession(sessionID string) (*dto.PaymentResponse, error)
 	VerifySSLCommerzSession(tranID, status string) (*dto.PaymentResponse, error)
+	GetUserPayments(params query.Params, userID uint) (*httpresponse.PaginatedData, error)
+	GetManagerPayments(params query.Params, managerID uint) (*httpresponse.PaginatedData, error)
+	GetAllPayments(params query.Params) (*httpresponse.PaginatedData, error)
 	// Payment methods
 	CreatePaymentMethod(req dto.CreatePaymentMethodRequest) (*dto.PaymentMethodResponse, error)
 	UpdatePaymentMethod(id uint, req dto.UpdatePaymentMethodRequest) (*dto.PaymentMethodResponse, error)
@@ -654,7 +658,92 @@ func (s *service) VerifySSLCommerzSession(tranID, status string) (*dto.PaymentRe
 	return p.ToResponse(code), nil
 }
 
+
+func (s *service) GetAllPayments(params query.Params) (*httpresponse.PaginatedData, error) {
+	events, total, err := s.paymentRepo.GetAllPayments(params)
+	if err != nil {
+		return nil, err
+	}
+
+	docs := make([]*dto.PaymentResponse, 0, len(events))
+	for _, e := range events {
+		docs = append(docs, e.ToRawResponse())
+	}
+
+	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
+	return &httpresponse.PaginatedData{
+		Docs:           docs,
+		PaginationMeta: meta,
+	}, nil
+
+}
+
+
+	
+func (s *service) GetManagerPayments(params query.Params,managerID uint) (*httpresponse.PaginatedData, error) {
+	events, total, err := s.paymentRepo.GetManagerPayments(params, managerID)
+	if err != nil {
+		return nil, err
+	}
+
+	docs := make([]*dto.PaymentResponse, 0, len(events))
+	for _, e := range events {
+		docs = append(docs, e.ToRawResponse())
+	}
+
+	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
+	return &httpresponse.PaginatedData{
+		Docs:           docs,
+		PaginationMeta: meta,
+	}, nil
+
+	}
+
+
+
+	
+func (s *service) GetUserPayments(params query.Params,userID uint) (*httpresponse.PaginatedData, error) {
+	events, total, err := s.paymentRepo.GetUserPayments(params, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	docs := make([]*dto.PaymentResponse, 0, len(events))
+	for _, e := range events {
+		docs = append(docs, e.ToRawResponse())
+	}
+
+	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
+	return &httpresponse.PaginatedData{
+		Docs:           docs,
+		PaginationMeta: meta,
+	}, nil
+
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // ---- Payment Method CRUD ----
+	
 
 func (s *service) CreatePaymentMethod(req dto.CreatePaymentMethodRequest) (*dto.PaymentMethodResponse, error) {
 	code := strings.ToLower(strings.TrimSpace(req.Code))

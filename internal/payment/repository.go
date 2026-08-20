@@ -2,6 +2,7 @@ package payment
 
 import (
 	"errors"
+	"ticketBooking/internal/utils/query"
 
 	"gorm.io/gorm"
 )
@@ -21,6 +22,9 @@ type Repository interface {
 	GetBySessionID(sessionID string) (*Payment, error)
 	GetByBookingID(bookingID uint) (*Payment, error)
 	GetByUserID(userID uint) ([]Payment, error)
+    GetAllPayments(params query.Params) ([]*Payment, int64, error)
+	GetManagerPayments(params query.Params, managerID uint) ([]*Payment, int64, error)
+	GetUserPayments(params query.Params, userID uint) ([]*Payment, int64, error)
 
 	// Payment methods
 	CreateMethod(m *PaymentMethod) error
@@ -80,7 +84,75 @@ func (r *repository) GetByUserID(userID uint) ([]Payment, error) {
 	return list, err
 }
 
-// ---- Payment methods ----
+func (r *repository) GetAllPayments(params query.Params) ([]*Payment, int64, error) {
+    var list  []*Payment
+	var total int64
+
+	db := r.db.Model(&Payment{})
+	db = query.Apply(db, params,[]string{"transaction_id", "status", "created_at"},nil, nil)
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	db = query.Paginate(db, params)
+
+	err := db.Order("created_at DESC").Preload("Bookings").Preload("UserInfo").Preload("EventInfo").Preload("EventInfo.Manager").Preload("EventInfo.Category").Find(&list).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return list, total, nil
+}
+
+func (r *repository) GetManagerPayments(params query.Params, managerID uint) ([]*Payment, int64, error){
+
+    var list  []*Payment
+	var total int64
+
+	db := r.db.Model(&Payment{}). Joins("JOIN events ON events.id = payments.event_id").
+    Where("events.manager_id = ?", managerID)
+	
+	db = query.Apply(db, params,[]string{"transaction_id", "status", "created_at"},nil, nil)
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	db = query.Paginate(db, params)
+
+	err := db.Preload("Bookings").Preload("UserInfo").Preload("EventInfo").Preload("EventInfo.Manager").Preload("EventInfo.Category").Find(&list).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return list, total, nil
+
+}
+
+func (r *repository) GetUserPayments(params query.Params, userID uint) ([]*Payment, int64, error){
+	var list  []*Payment
+	var total int64
+
+	db := r.db.Model(&Payment{}).Where("user_id = ?", userID)
+	db = query.Apply(db, params,[]string{"transaction_id", "status", "created_at"},nil, nil)
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	db = query.Paginate(db, params)
+
+	err := db.Order("created_at DESC").Preload("Bookings").Preload("UserInfo").Preload("EventInfo").Preload("EventInfo.Manager").Preload("EventInfo.Category").Find(&list).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return list, total, nil
+}
 
 func (r *repository) CreateMethod(m *PaymentMethod) error {
 	return r.db.Create(m).Error
