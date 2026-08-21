@@ -87,7 +87,7 @@ func (r *repository) GetAll(p query.Params) ([]*Booking, int64, error) {
 	var total int64
 
 	db := r.db.Model(&Booking{})
-	db = query.Apply(db, p, []string{"booking_code", "created_at", "status","total_price"}, nil, nil)
+	db = query.Apply(db, p, []string{"booking_code", "created_at", "status","total_price"}, nil, nil,nil,nil)
 if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}

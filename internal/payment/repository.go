@@ -30,9 +30,9 @@ type Repository interface {
 	GetBySessionID(sessionID string) (*Payment, error)
 	GetByBookingID(bookingID uint) (*Payment, error)
 	GetByUserID(userID uint) ([]Payment, error)
-	GetAllPayments(params query.Params) ([]*Payment, int64, error)
-	GetManagerPayments(params query.Params, managerID uint) ([]*Payment, int64, error)
-	GetUserPayments(params query.Params, userID uint) ([]*Payment, int64, error)
+	GetAllPayments(params query.Params,lang string) ([]*Payment, int64, error)
+	GetManagerPayments(params query.Params, managerID uint,lang string) ([]*Payment, int64, error)
+	GetUserPayments(params query.Params, userID uint,lang string) ([]*Payment, int64, error)
 
 	AggregateAllPayments(params query.Params) ([]PaymentAmountRow, error)
 	AggregateManagerPayments(params query.Params, managerID uint) ([]PaymentAmountRow, error)
@@ -96,37 +96,44 @@ func (r *repository) GetByUserID(userID uint) ([]Payment, error) {
 	return list, err
 }
 
-func (r *repository) GetAllPayments(params query.Params) ([]*Payment, int64, error) {
+func (r *repository) GetAllPayments(params query.Params,lang string) ([]*Payment, int64, error) {
     var list  []*Payment
 	var total int64
 
-	db := r.db.Model(&Payment{})
-	db = query.Apply(db, params,[]string{"transaction_id", "status", "created_at"},nil, nil)
+	db := r.db.Model(&Payment{}).
+		Joins("JOIN events ON events.id = payments.event_id").
+		Joins("JOIN bookings ON bookings.id = payments.booking_id").
+		Joins("JOIN users ON users.id = payments.user_id")
 
-	if err := db.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
 
-	db = query.Paginate(db, params)
+   searchFields := []string{
+		"payments.transaction_id", "payments.status", "CAST(payments.paid_at AS TEXT)", "CAST(payments.amount AS TEXT)", }
 
-	err := db.Order("created_at DESC").Preload("Bookings").Preload("UserInfo").Preload("EventInfo").Preload("EventInfo.Manager").Preload("EventInfo.Category").Find(&list).Error
-
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return list, total, nil
-}
-
-func (r *repository) GetManagerPayments(params query.Params, managerID uint) ([]*Payment, int64, error){
-
-    var list  []*Payment
-	var total int64
-
-	db := r.db.Model(&Payment{}). Joins("JOIN events ON events.id = payments.event_id").
-    Where("events.manager_id = ?", managerID)
+	// events.title / description যদি সাধারণ string হয়
+	joinedJsonbFields := []string{
+		"events.title",
+		"events.description",
 	
-	db = query.Apply(db, params,[]string{"transaction_id", "status", "created_at"},nil, nil)
+	}
+
+	// যদি events.title / description JSONB হয় (multi-lang), তাহলে এখানে দাও:
+	// joinedJsonbFields := []string{"events.title", "events.description"}
+	joinedSearchFields := []string{	// "bookings.total_price", // number → ILIKE করবে না, চাইলে CAST করো
+		"users.name",
+		"users.email",
+		"users.role",
+	"bookings.booking_code",
+} // এখন খালি রাখলাম
+
+	db = query.Apply(
+		db,
+		params,
+		searchFields,
+		nil,                 // jsonbFields (same table)
+		lang,                 // lang
+		joinedJsonbFields,   // joined JSONB
+		joinedSearchFields,  // joined string
+	)
 
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -134,7 +141,13 @@ func (r *repository) GetManagerPayments(params query.Params, managerID uint) ([]
 
 	db = query.Paginate(db, params)
 
-	err := db.Preload("Bookings").Preload("UserInfo").Preload("EventInfo").Preload("EventInfo.Manager").Preload("EventInfo.Category").Find(&list).Error
+	err := db.
+		Preload("Bookings").
+		Preload("UserInfo").
+		Preload("EventInfo").
+		Preload("EventInfo.Manager").
+		Preload("EventInfo.Category").
+		Find(&list).Error
 
 	if err != nil {
 		return nil, 0, err
@@ -142,14 +155,100 @@ func (r *repository) GetManagerPayments(params query.Params, managerID uint) ([]
 
 	return list, total, nil
 
+
+
+
+
+
+
+
+
+	// db = query.Apply(db, params,[]string{"transaction_id", "status", "created_at"},nil, nil,nil,nil)
+
+	// if err := db.Count(&total).Error; err != nil {
+	// 	return nil, 0, err
+	// }
+
+	// db = query.Paginate(db, params)
+
+	// err := db.Order("created_at DESC").Preload("Bookings").Preload("UserInfo").Preload("EventInfo").Preload("EventInfo.Manager").Preload("EventInfo.Category").Find(&list).Error
+
+	// if err != nil {
+	// 	return nil, 0, err
+	// }
+
+	// return list, total, nil
 }
 
-func (r *repository) GetUserPayments(params query.Params, userID uint) ([]*Payment, int64, error){
+
+
+func (r *repository) GetManagerPayments(params query.Params, managerID uint,lang string) ([]*Payment, int64, error) {
+	var list []*Payment
+	var total int64
+
+	db := r.db.Model(&Payment{}).
+		Joins("JOIN events ON events.id = payments.event_id").
+		Joins("JOIN bookings ON bookings.id = payments.booking_id").
+		Joins("JOIN users ON users.id = payments.user_id").
+		Where("events.manager_id = ?", managerID)
+
+	// same table (payments)
+	searchFields := []string{
+		"payments.transaction_id", "payments.status", "CAST(payments.paid_at AS TEXT)", "CAST(payments.amount AS TEXT)", }
+
+	// events.title / description যদি সাধারণ string হয়
+	joinedJsonbFields := []string{
+		"events.title",
+		"events.description",
+	
+	}
+
+	// যদি events.title / description JSONB হয় (multi-lang), তাহলে এখানে দাও:
+	// joinedJsonbFields := []string{"events.title", "events.description"}
+	joinedSearchFields := []string{	// "bookings.total_price", // number → ILIKE করবে না, চাইলে CAST করো
+		"users.name",
+		"users.email",
+		"users.role",
+	"bookings.booking_code",
+} // এখন খালি রাখলাম
+
+	db = query.Apply(
+		db,
+		params,
+		searchFields,
+		nil,                 // jsonbFields (same table)
+		lang,                 // lang
+		joinedJsonbFields,   // joined JSONB
+		joinedSearchFields,  // joined string
+	)
+
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	db = query.Paginate(db, params)
+
+	err := db.
+		Preload("Bookings").
+		Preload("UserInfo").
+		Preload("EventInfo").
+		Preload("EventInfo.Manager").
+		Preload("EventInfo.Category").
+		Find(&list).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return list, total, nil
+}
+
+func (r *repository) GetUserPayments(params query.Params, userID uint,lang string) ([]*Payment, int64, error){
 	var list  []*Payment
 	var total int64
 
 	db := r.db.Model(&Payment{}).Where("user_id = ?", userID)
-	db = query.Apply(db, params,[]string{"transaction_id", "status", "created_at"},nil, nil)
+	db = query.Apply(db, params,[]string{"transaction_id", "status", "created_at"},nil, "",nil,nil)
 
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err

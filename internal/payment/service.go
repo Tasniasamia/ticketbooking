@@ -44,9 +44,9 @@ type Service interface {
 	GetByUserID(userID uint) ([]*dto.PaymentResponse, error)
 	VerifyStripeSession(sessionID string) (*dto.PaymentResponse, error)
 	VerifySSLCommerzSession(tranID, status string) (*dto.PaymentResponse, error)
-	GetUserPayments(params query.Params, userID uint) (*PaymentsListData, error)
-	GetManagerPayments(params query.Params, managerID uint) (*PaymentsListData, error)
-	GetAllPayments(params query.Params) (*PaymentsListData, error)
+	GetUserPayments(params query.Params, userID uint,lang string) (*PaymentsListData, error)
+	GetManagerPayments(params query.Params, managerID uint,lang string) (*PaymentsListData, error)
+	GetAllPayments(params query.Params,lang string) (*PaymentsListData, error)
 	// Payment methods
 	CreatePaymentMethod(req dto.CreatePaymentMethodRequest) (*dto.PaymentMethodResponse, error)
 	UpdatePaymentMethod(id uint, req dto.UpdatePaymentMethodRequest) (*dto.PaymentMethodResponse, error)
@@ -674,8 +674,8 @@ func (s *service) VerifySSLCommerzSession(tranID, status string) (*dto.PaymentRe
 	return p.ToResponse(code), nil
 }
 
-func (s *service) GetAllPayments(params query.Params) (*PaymentsListData, error) {
-	events, total, err := s.paymentRepo.GetAllPayments(params)
+func (s *service) GetAllPayments(params query.Params,lang string) (*PaymentsListData, error) {
+	events, total, err := s.paymentRepo.GetAllPayments(params,lang)
 	if err != nil {
 		return nil, err
 	}
@@ -701,8 +701,8 @@ func (s *service) GetAllPayments(params query.Params) (*PaymentsListData, error)
 	}, nil
 }
 
-func (s *service) GetManagerPayments(params query.Params, managerID uint) (*PaymentsListData, error) {
-	events, total, err := s.paymentRepo.GetManagerPayments(params, managerID)
+func (s *service) GetManagerPayments(params query.Params, managerID uint, lang string) (*PaymentsListData, error) {
+	events, total, err := s.paymentRepo.GetManagerPayments(params, managerID, lang)
 	if err != nil {
 		return nil, err
 	}
@@ -728,8 +728,8 @@ func (s *service) GetManagerPayments(params query.Params, managerID uint) (*Paym
 	}, nil
 }
 
-func (s *service) GetUserPayments(params query.Params, userID uint) (*PaymentsListData, error) {
-	events, total, err := s.paymentRepo.GetUserPayments(params, userID)
+func (s *service) GetUserPayments(params query.Params, userID uint, lang string) (*PaymentsListData, error) {
+	events, total, err := s.paymentRepo.GetUserPayments(params, userID, lang)
 	if err != nil {
 		return nil, err
 	}

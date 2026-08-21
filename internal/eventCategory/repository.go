@@ -25,7 +25,7 @@ func (r *repository) GetAll(p query.Params,lang string) ([]*EventCategory, int64
 	var events []*EventCategory
 	var total int64
 	db := r.db.Model(&EventCategory{})
-	db = query.Apply(db, p, nil, []string{"name", "description", "created_at"},lang)
+	db = query.Apply(db, p, nil, []string{"name", "description", "created_at"},lang,nil,nil)
 	if err := db.Count(&total).Error; err != nil { return nil, 0, err }
 	db = query.Paginate(db, p)
 	if err := db.Find(&events).Error; err != nil { return nil, 0, err }

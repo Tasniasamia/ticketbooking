@@ -92,7 +92,7 @@ func (r *repository) GetAll(p query.Params) ([]*User, int64, error) {
 	var users []*User
 	var total int64
 	db := r.db.Model(&User{})
-	db = query.Apply(db, p, []string{"name", "email"}, nil,nil)
+	db = query.Apply(db, p, []string{"name", "email"}, nil,nil,nil,nil)
 	if err := db.Count(&total).Error; err != nil { return nil, 0, err }
 	db = query.Paginate(db, p)
 	if err := db.Find(&users).Error; err != nil { return nil, 0, err }

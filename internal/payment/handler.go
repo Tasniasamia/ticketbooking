@@ -135,9 +135,13 @@ func (h *handler) VerifySSLCommerzSession(c *echo.Context) error {
 }
 
 func (h *handler) GetAllPayments(c *echo.Context) error {
-
+	lang := c.QueryParam("lang")
+     
+	if lang == "" {
+		lang = "en"
+	}
 	params := query.Parse(c)
-    res, err := h.service.GetAllPayments(params)
+    res, err := h.service.GetAllPayments(params,lang)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, httpresponse.Error{Success: false, StatusCode: 500, Error: true, ErrorMessage: err.Error()})
 	}
@@ -149,8 +153,13 @@ func (h *handler) GetUserPayments(c *echo.Context) error {
 	if !ok {
 		return c.JSON(http.StatusUnauthorized, httpresponse.Error{Success: false, StatusCode: 401, Error: true, ErrorMessage: "unauthorized User"})
 	}
+			lang := c.QueryParam("lang")
+     
+	if lang == "" {
+		lang = "en"
+	}
     params := query.Parse(c)
-    res, err := h.service.GetUserPayments(params, userID)
+    res, err := h.service.GetUserPayments(params, userID,lang)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, httpresponse.Error{Success: false, StatusCode: 500, Error: true, ErrorMessage: err.Error()})
 	}
@@ -162,8 +171,14 @@ func (h *handler) GetManagementPayments(c *echo.Context) error {
 	if !ok {
 		return c.JSON(http.StatusUnauthorized, httpresponse.Error{Success: false, StatusCode: 401, Error: true, ErrorMessage: "unauthorized Manager"})
 	}
+		lang := c.QueryParam("lang")
+     
+	if lang == "" {
+		lang = "en"
+	}
+
     params := query.Parse(c)
-    res, err := h.service.GetManagerPayments(params, managerId)
+    res, err := h.service.GetManagerPayments(params,managerId,lang)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, httpresponse.Error{Success: false, StatusCode: 500, Error: true, ErrorMessage: err.Error()})
 	}

@@ -39,7 +39,7 @@ func (r *repository) GetAll(p query.Params, lang string) ([]*Event, int64, error
 	var total int64
 
 	db := r.db.Model(&Event{})
-	db = query.Apply(db, p, nil, []string{"title", "description", "location"}, lang)
+	db = query.Apply(db, p, nil, []string{"title", "description", "location"}, lang,nil,nil)
 
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err

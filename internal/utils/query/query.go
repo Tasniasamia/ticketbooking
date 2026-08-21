@@ -130,7 +130,7 @@ for key, values := range c.QueryParams() {
 }
 
 // Apply → GORM query-তে সব কিছু apply করে
-func Apply(db *gorm.DB, p Params, searchFields []string, jsonbFields []string,lang interface{}) *gorm.DB {
+func Apply(db *gorm.DB, p Params, searchFields []string, jsonbFields []string,lang interface{},joinedJsonbFields []string,joinedSearchFields []string) *gorm.DB {
 	// 1. Search
 	if p.Search != "" {
 		var conditions []string
@@ -149,23 +149,27 @@ func Apply(db *gorm.DB, p Params, searchFields []string, jsonbFields []string,la
 		// }
 
 
-		for _, field := range jsonbFields {
-    conditions = append(
-        conditions,
-        field+" ->> ? ILIKE ?",
-    )
-
+	for _, field := range jsonbFields {
+    conditions = append(conditions,"(" + field + " ->> ?) ILIKE ?",)
     args = append(
         args,
         lang,
         "%"+p.Search+"%",
     )
-}
+   }
 
+        // Joined / nested fields (already joined table-এর column)
 
+        for _, field := range joinedJsonbFields {
+			conditions = append(conditions, "(" + field + " ->> ?) ILIKE ?")
+			args = append(args, lang, "%"+p.Search+"%")
+		}
 
-
-
+		// joined table string
+		for _, field := range joinedSearchFields {
+			conditions = append(conditions, field+" ILIKE ?")
+			args = append(args, "%"+p.Search+"%")
+		}
 
 
 

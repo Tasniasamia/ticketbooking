@@ -86,7 +86,7 @@ func (r *repository) GetAll(p query.Params) ([]*Currency, int64, error) {
 	
 	// multi-lang fields
 	stringFields := []string{"name", "code", "status"}
-	db = query.Apply(db, p, stringFields, nil,nil)
+	db = query.Apply(db, p, stringFields, nil,nil,nil,nil)
 
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -110,7 +110,7 @@ func (r *repository) GetAllEnabled(p query.Params) ([]*Currency, int64, error) {
 	
 	// multi-lang fields
 	stringFields := []string{"name", "code", "status"}
-	db = query.Apply(db, p, stringFields, nil,nil)
+	db = query.Apply(db, p, stringFields, nil,nil,nil,nil)
 
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err

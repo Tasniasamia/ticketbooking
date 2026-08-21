@@ -36,7 +36,7 @@ func (r *repository) GetAll(p query.Params) ([]*Translation, int64, error) {
 	db := r.db.Model(&Translation{})
 
 	searchFields := []string{"key"}
-	db = query.Apply(db, p, searchFields, nil,nil)
+	db = query.Apply(db, p, searchFields, nil,nil,nil,nil)
 
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
