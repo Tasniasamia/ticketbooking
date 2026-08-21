@@ -27,6 +27,7 @@ func PaymentRegisterRoutes(api *echo.Group, db *gorm.DB, cfg config.Config) {
 	// Checkout & payment queries (auth)
 	g.POST("/checkout", h.CreateCheckout, middleware.AuthMiddleware(jwtSvc))
 	g.GET("", h.GetMyPayments, middleware.AuthMiddleware(jwtSvc))
+
     g.GET("/manager", h.GetManagementPayments, middleware.AuthMiddleware(jwtSvc),middleware.ManagerMiddleware());
 	g.GET("/admin", h.GetAllPayments, middleware.AuthMiddleware(jwtSvc),middleware.AdminMiddleware());
     g.GET("/user", h.GetUserPayments, middleware.AuthMiddleware(jwtSvc));
@@ -50,6 +51,7 @@ func PaymentRegisterRoutes(api *echo.Group, db *gorm.DB, cfg config.Config) {
 	// Admin: create / update / delete / list all (protected)
 	pm := api.Group("/payment-methods")
 	pm.GET("", h.ListPaymentMethods) // ?all=true needs auth ideally; public returns enabled only
+	pm.GET("/admin", h.ListPaymentMethodsAdmin,middleware.AuthMiddleware(jwtSvc),middleware.AdminMiddleware())
 	pm.GET("/:id", h.GetPaymentMethod)
 	pm.POST("", h.CreatePaymentMethod, middleware.AuthMiddleware(jwtSvc),middleware.AdminMiddleware())
 	pm.PUT("/:id", h.UpdatePaymentMethod, middleware.AuthMiddleware(jwtSvc),middleware.AdminMiddleware())

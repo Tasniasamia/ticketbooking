@@ -52,7 +52,8 @@ type Service interface {
 	UpdatePaymentMethod(id uint, req dto.UpdatePaymentMethodRequest) (*dto.PaymentMethodResponse, error)
 	DeletePaymentMethod(id uint) error
 	GetPaymentMethod(id uint) (*dto.PaymentMethodResponse, error)
-	ListPaymentMethods(enabledOnly bool) ([]*dto.PaymentMethodResponse, error)
+ListPaymentMethods(p query.Params, enabledOnly bool) (*httpresponse.PaginatedData, error)
+ListPaymentMethodsAdmin(p query.Params) (*httpresponse.PaginatedData, error)
 }
 
 type service struct {
@@ -892,14 +893,40 @@ func (s *service) GetPaymentMethod(id uint) (*dto.PaymentMethodResponse, error) 
 	return m.ToResponse(), nil
 }
 
-func (s *service) ListPaymentMethods(enabledOnly bool) ([]*dto.PaymentMethodResponse, error) {
-	list, err := s.paymentRepo.ListMethods(enabledOnly)
+func (s *service) ListPaymentMethods(p query.Params, enabledOnly bool) (*httpresponse.PaginatedData, error) {
+
+	list, total, err := s.paymentRepo.ListMethods(p,enabledOnly)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]*dto.PaymentMethodResponse, 0, len(list))
-	for i := range list {
-		out = append(out, list[i].ToResponse())
+
+	docs := make([]*dto.PaymentMethodResponse, 0, len(list))
+	for _, e := range list {
+		docs = append(docs, e.ToResponse())
 	}
-	return out, nil
+
+	meta := httpresponse.BuildPaginationMeta(total, p.Page, p.Limit)
+	return &httpresponse.PaginatedData{
+		Docs:           docs,
+		PaginationMeta: meta,
+	}, nil
+}
+
+func (s *service) ListPaymentMethodsAdmin(p query.Params) (*httpresponse.PaginatedData, error) {
+
+	list, total, err := s.paymentRepo.ListMethodsAdmin(p)
+	if err != nil {
+		return nil, err
+	}
+
+	docs := make([]*dto.PaymentMethodResponse, 0, len(list))
+	for _, e := range list {
+		docs = append(docs, e.ToResponse())
+	}
+
+	meta := httpresponse.BuildPaginationMeta(total, p.Page, p.Limit)
+	return &httpresponse.PaginatedData{
+		Docs:           docs,
+		PaginationMeta: meta,
+	}, nil
 }

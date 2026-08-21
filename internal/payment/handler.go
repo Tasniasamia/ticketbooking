@@ -270,11 +270,41 @@ func (h *handler) GetPaymentMethod(c *echo.Context) error {
 
 func (h *handler) ListPaymentMethods(c *echo.Context) error {
 	// Public list: only enabled by default. Admin can pass ?all=true
+	params := query.Parse(c)
+	lang := c.QueryParam("lang")
+
+	fmt.Println("lang", lang);
+	if lang == "" {
+		lang = "en"
+	}
+
 	enabledOnly := true
 	if c.QueryParam("all") == "true" {
 		enabledOnly = false
 	}
-	res, err := h.service.ListPaymentMethods(enabledOnly)
+	res, err := h.service.ListPaymentMethods(params, enabledOnly)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{Success: false, StatusCode: 500, Error: true, ErrorMessage: err.Error()})
+	}
+	return c.JSON(http.StatusOK, httpresponse.Success{Success: true, StatusCode: 200, Message: "Payment methods fetched", Data: res})
+}
+
+
+func (h *handler) ListPaymentMethodsAdmin(c *echo.Context) error {
+	// Admin list: all payment methods
+	params := query.Parse(c)
+	lang := c.QueryParam("lang")
+
+	fmt.Println("lang", lang);
+	if lang == "" {
+		lang = "en"
+	}
+
+	enabledOnly := true
+	if c.QueryParam("all") == "true" {
+		enabledOnly = false
+	}
+	res, err := h.service.ListPaymentMethods(params, enabledOnly)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, httpresponse.Error{Success: false, StatusCode: 500, Error: true, ErrorMessage: err.Error()})
 	}

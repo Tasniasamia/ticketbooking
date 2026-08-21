@@ -44,7 +44,8 @@ type Repository interface {
 	DeleteMethod(id uint) error
 	GetMethodByID(id uint) (PaymentMethod, error)
 	GetMethodByCode(code string) (PaymentMethod, error)
-	ListMethods(enabledOnly bool) ([]PaymentMethod, error)
+	ListMethods(p query.Params,enabledOnly bool) ([]PaymentMethod,int64, error)
+	ListMethodsAdmin(p query.Params) ([]PaymentMethod,int64, error)
 }
 
 type repository struct{ db *gorm.DB }
@@ -247,8 +248,39 @@ func (r *repository) GetUserPayments(params query.Params, userID uint,lang strin
 	var list  []*Payment
 	var total int64
 
-	db := r.db.Model(&Payment{}).Where("user_id = ?", userID)
-	db = query.Apply(db, params,[]string{"transaction_id", "status", "created_at"},nil, "",nil,nil)
+	db := r.db.Model(&Payment{}).
+		Joins("JOIN events ON events.id = payments.event_id").
+		Joins("JOIN bookings ON bookings.id = payments.booking_id").
+		Joins("JOIN users ON users.id = payments.user_id").Where("payments.user_id = ?", userID)
+
+searchFields := []string{
+		"payments.transaction_id", "payments.status", "CAST(payments.paid_at AS TEXT)", "CAST(payments.amount AS TEXT)", }
+
+	// events.title / description যদি সাধারণ string হয়
+	joinedJsonbFields := []string{
+		"events.title",
+		"events.description",
+	
+	}
+
+	// যদি events.title / description JSONB হয় (multi-lang), তাহলে এখানে দাও:
+	// joinedJsonbFields := []string{"events.title", "events.description"}
+	joinedSearchFields := []string{	// "bookings.total_price", // number → ILIKE করবে না, চাইলে CAST করো
+		"users.name",
+		"users.email",
+		"users.role",
+	"bookings.booking_code",
+} // এখন খালি রাখলাম
+
+	db = query.Apply(
+		db,
+		params,
+		searchFields,
+		nil,                 // jsonbFields (same table)
+		lang,                 // lang
+		joinedJsonbFields,   // joined JSONB
+		joinedSearchFields,  // joined string
+	)
 
 	if err := db.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -256,7 +288,13 @@ func (r *repository) GetUserPayments(params query.Params, userID uint,lang strin
 
 	db = query.Paginate(db, params)
 
-	err := db.Order("created_at DESC").Preload("Bookings").Preload("UserInfo").Preload("EventInfo").Preload("EventInfo.Manager").Preload("EventInfo.Category").Find(&list).Error
+	err := db.
+		Preload("Bookings").
+		Preload("UserInfo").
+		Preload("EventInfo").
+		Preload("EventInfo.Manager").
+		Preload("EventInfo.Category").
+		Find(&list).Error
 
 	if err != nil {
 		return nil, 0, err
@@ -352,12 +390,24 @@ func (r *repository) GetMethodByCode(code string) (PaymentMethod, error) {
 	return m, err
 }
 
-func (r *repository) ListMethods(enabledOnly bool) ([]PaymentMethod, error) {
-	var list []PaymentMethod
-	q := r.db.Order("id ASC")
-	if enabledOnly {
-		q = q.Where("enable = ?", true)
-	}
-	err := q.Find(&list).Error
-	return list, err
+func (r *repository) ListMethods(p query.Params,enabledOnly bool) ([]PaymentMethod,int64, error) {
+	var list []PaymentMethod;
+	var total int64;
+    db := r.db.Model(&PaymentMethod{}).Where("enable = ?", true)
+	db = query.Apply(db, p, []string{"name","code","CAST(enable AS TEXT)"},nil,nil,nil,nil)
+	if err := db.Count(&total).Error; err != nil { return nil, 0, err }
+	db = query.Paginate(db, p)
+	if err := db.Find(&list).Error; err != nil { return nil, 0, err }
+	return list, total, nil
+}
+
+func (r *repository) ListMethodsAdmin(p query.Params) ([]PaymentMethod,int64, error) {
+	var list []PaymentMethod;
+	var total int64;
+    db := r.db.Model(&PaymentMethod{}).Where("enable = ?", true)
+	db = query.Apply(db, p,  []string{"name", "code","CAST(enable AS TEXT)"},nil,nil,nil,nil)
+	if err := db.Count(&total).Error; err != nil { return nil, 0, err }
+	db = query.Paginate(db, p)
+	if err := db.Find(&list).Error; err != nil { return nil, 0, err }
+	return list, total, nil
 }
