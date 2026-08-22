@@ -1,17 +1,21 @@
 package server
 
 import (
+	"ticketBooking/internal/blog"
+	"ticketBooking/internal/booking"
+	"ticketBooking/internal/comment"
+
 	"ticketBooking/internal/config"
 	"ticketBooking/internal/currency"
 	"ticketBooking/internal/event"
+	"ticketBooking/internal/eventCategory"
 	"ticketBooking/internal/language"
 	"ticketBooking/internal/media"
+	"ticketBooking/internal/payment"
 	"ticketBooking/internal/settings"
 	"ticketBooking/internal/translation"
 	"ticketBooking/internal/user"
-	"ticketBooking/internal/payment"
-	"ticketBooking/internal/booking"
-    "ticketBooking/internal/eventCategory"
+
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"
 )
@@ -30,7 +34,8 @@ func RegisterAllRoutes(api *echo.Group, db *gorm.DB, config config.Config) {
 		payment.PaymentRegisterRoutes,
 		booking.BookingRegisterRoutes,
 		eventCategory.EventCategoryRegisterRoutes,
-		
+		blog.BlogRegisterRoutes,
+		comment.CommentRegisterRoutes,
 	}
 
 	for _, register := range registrars {

@@ -7,6 +7,8 @@ import (
 	"ticketBooking/internal/settings/dto"
 	"time"
 	"gorm.io/gorm"
+		"gorm.io/datatypes"
+
 )
 
 type SocialMediaLink struct{ Name, Link string }
@@ -21,6 +23,15 @@ func (s *SocialMediaLinks) Scan(v interface{}) error {
 	if !ok { str, ok := v.(string); if !ok { return errors.New("scan fail") }; b = []byte(str) }
 	return json.Unmarshal(b, s)
 }
+
+type PageSettings struct{
+	gorm.Model
+	Slug string `json:"slug" validate:"required"`
+	Content datatypes.JSON `json:"content" gorm:"type:jsonb"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+}
+
 
 
 type Setting struct {

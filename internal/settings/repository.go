@@ -7,6 +7,9 @@ type Repository interface {
 	Create(s *Setting) error
 	Update(s *Setting) error
 	Upsert(s *Setting) error
+	UpsertPageSetting(s *PageSettings) error
+	GetPageSetting(slug string) (*PageSettings, error) 
+	CreatePageSettings(s *PageSettings) error
 }
 type repository struct{ db *gorm.DB }
 func NewRepository(db *gorm.DB) Repository { return &repository{db: db} }
@@ -21,6 +24,23 @@ func (r *repository) Update(s *Setting) error { return r.db.Save(s).Error }
 func (r *repository) Upsert(s *Setting) error {
 	ex, err := r.Get()
 	if errors.Is(err, gorm.ErrRecordNotFound) { return r.Create(s) }
+	if err != nil { return err }
+	s.ID = ex.ID; s.CreatedAt = ex.CreatedAt
+	return r.db.Save(s).Error
+}
+
+func (r *repository) CreatePageSettings(s *PageSettings) error { return r.db.Create(s).Error }
+
+func (r *repository) GetPageSetting(slug string) (*PageSettings, error) {
+	var s PageSettings
+	err := r.db.Where("slug = ?", slug).First(&s).Error
+	if err != nil { return nil, err }
+	return &s, nil
+}
+
+func (r *repository) UpsertPageSetting(s *PageSettings) error {
+	ex, err := r.GetPageSetting(s.Slug)
+	if errors.Is(err, gorm.ErrRecordNotFound) { return r.CreatePageSettings(s) }
 	if err != nil { return err }
 	s.ID = ex.ID; s.CreatedAt = ex.CreatedAt
 	return r.db.Save(s).Error

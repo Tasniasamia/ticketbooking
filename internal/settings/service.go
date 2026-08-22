@@ -10,6 +10,11 @@ type Service interface {
 	Get() (*dto.Response, error)
 	GetRaw() (*Setting, error)
 	Upsert(req *dto.UpsertRequest) (*dto.Response, error)
+
+UpsertPageSetting(s *PageSettings) (*dto.PageSettingResponse, error)
+	GetPageSetting(slug string) (*dto.PageSettingResponse, error) 
+
+
 }
 type service struct{ repo Repository }
 func NewService(repo Repository) Service { return &service{repo: repo} }
@@ -110,4 +115,36 @@ func (s *service) Upsert(req *dto.UpsertRequest) (*dto.Response, error) {
 		return nil, err
 	}
 	return fresh.ToResponse(), nil
+}
+
+
+func (s *service) GetPageSetting(slug string) (*dto.PageSettingResponse, error) {
+	fresh, err := s.repo.GetPageSetting(slug)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.PageSettingResponse{
+		ID:        fresh.ID,
+		CreatedAt: fresh.CreatedAt.Local().String(),
+		UpdatedAt: fresh.UpdatedAt.Local().String(),
+		Slug:      fresh.Slug,
+		Content:   fresh.Content,
+	}, nil
+}
+
+func (s *service) UpsertPageSetting(req *PageSettings) (*dto.PageSettingResponse, error) {
+	if err := s.repo.UpsertPageSetting(req); err != nil {
+		return nil, err
+	}
+	fresh, err := s.repo.GetPageSetting(req.Slug)
+	if err != nil {
+		return nil, err
+	}
+	return &dto.PageSettingResponse{
+		ID:        fresh.ID,
+		CreatedAt: fresh.CreatedAt.Local().String(),
+		UpdatedAt: fresh.UpdatedAt.Local().String(),
+		Slug:      fresh.Slug,
+		Content:   fresh.Content,
+	}, nil
 }

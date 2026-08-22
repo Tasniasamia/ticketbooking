@@ -1,7 +1,9 @@
 package database
 
 import (
+	"ticketBooking/internal/blog"
 	"ticketBooking/internal/booking"
+	"ticketBooking/internal/comment"
 	"ticketBooking/internal/currency"
 	"ticketBooking/internal/event"
 	"ticketBooking/internal/eventCategory"
@@ -18,7 +20,7 @@ import (
 )
 
 func RunMigrations(db *gorm.DB) {
-	err:=db.AutoMigrate(
+	err := db.AutoMigrate(
 		&user.User{},
 		&event.Event{},
 		&language.Language{},
@@ -26,13 +28,17 @@ func RunMigrations(db *gorm.DB) {
 		&media.Media{},
 		&currency.Currency{},
 		&settings.Setting{},
-		&payment.Payment{},	
+		&settings.PageSettings{},
+		&payment.Payment{},
 		&booking.Booking{},
-        &payment.PaymentMethod{},
+		&payment.PaymentMethod{},
 		&otp.OTP{},
 		&eventCategory.EventCategory{},
+		&blog.Blog{},
+		&blog.BlogLike{},
+		&comment.Comment{},
 	)
-	    if err != nil {
-        panic("migration failed: " + err.Error())
-    }
+	if err != nil {
+		panic("migration failed: " + err.Error())
+	}
 }

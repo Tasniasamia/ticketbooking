@@ -1,8 +1,18 @@
 package dto
 
+import "gorm.io/datatypes"
+
 type SocialMediaLink struct {
 	Name string `json:"name"`
 	Link string `json:"link"`
+}
+
+type PageSettingResponse struct{
+	ID                       uint              `json:"id"`
+	CreatedAt                string            `json:"created_at"`
+	UpdatedAt                string            `json:"updated_at"`
+	Slug    string                 `json:"slug"`
+	Content datatypes.JSON `json:"content"`
 }
 
 type Response struct {

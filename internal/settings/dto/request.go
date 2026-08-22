@@ -23,3 +23,9 @@ type UpsertRequest struct {
 	StripeCancelURL *string `json:"stripe_cancel_url"`
 	StripeWebhookSecret *string `json:"stripe_webhook_secret"`
 }
+
+
+type UpsertPageRequest struct{
+	Slug *string `json:"slug" validate:"required"`
+	Content *map[string]interface{} `json:"content"`
+}
