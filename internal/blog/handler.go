@@ -117,7 +117,7 @@ func (h *handler) GetBlogByID(c *echo.Context) error {
 		userID = uid
 	}
 
-	res, err := h.service.GetBlogByID(uint(blogID), lang, userID)
+	res, err := h.service.GetBlogByID(uint(blogID),  userID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, httpresponse.Error{
 			Success: false, StatusCode: http.StatusInternalServerError, Error: true,

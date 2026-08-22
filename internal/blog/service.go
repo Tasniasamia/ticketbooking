@@ -76,7 +76,7 @@ func (s *Service) GetAllBlogs(params query.Params, lang string) (*httpresponse.P
 	}, nil
 }
 
-func (s *Service) GetBlogByID(blogID uint, lang string, userID uint) (*dto.DetailResponse, error) {
+func (s *Service) GetBlogByID(blogID uint,userID uint) (*dto.DetailResponse, error) {
 	blog, err := s.repo.GetByID(blogID)
 	if err != nil {
 		return nil, err
