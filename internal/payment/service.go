@@ -13,13 +13,18 @@ import (
 	"ticketBooking/internal/currency"
 	"ticketBooking/internal/event"
 	"ticketBooking/internal/httpresponse"
+	"ticketBooking/internal/messaging"
 	"ticketBooking/internal/payment/dto"
+	"ticketBooking/internal/user"
+
+	"ticketBooking/internal/utils/query"
+
+	messageDTO "ticketBooking/internal/messaging/dto"
 
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/checkout/session"
 	"github.com/stripe/stripe-go/v82/webhook"
-	"ticketBooking/internal/utils/query"
 )
 
 var (
@@ -61,10 +66,26 @@ type service struct {
 	bookingRepo booking.Repository
 	eventRepo   event.Repository
 	currencySvc currency.Service
+	messageSVC  *messaging.Service
+	adminSVC    user.Repository
 }
 
-func NewService(pr Repository, br booking.Repository, er event.Repository, cs currency.Service) Service {
-	return &service{paymentRepo: pr, bookingRepo: br, eventRepo: er, currencySvc: cs}
+func NewService(
+    pr Repository,
+    br booking.Repository,
+    er event.Repository,
+    cs currency.Service,
+    ms *messaging.Service,
+    adminSVC    user.Repository,
+) Service {
+    return &service{
+        paymentRepo: pr,
+        bookingRepo: br,
+        eventRepo: er,
+        currencySvc: cs,
+        messageSVC: ms,
+		adminSVC: adminSVC,
+    }
 }
 
 func generateTransactionID() string {
@@ -466,23 +487,70 @@ func (s *service) handleStripeSessionFail(sess *stripe.CheckoutSession, st Payme
 	}
 	return s.markFailedBySession(sess.ID, st)
 }
-
 func (s *service) markSuccessByTranID(tranID string) error {
 	p, err := s.paymentRepo.GetByTransactionID(tranID)
 	if err != nil {
 		return err
 	}
 	if p.Status == StatusSuccess {
-		return nil
+		return nil // already done
 	}
+
+	// 1. Payment success
 	now := time.Now()
 	p.Status = StatusSuccess
 	p.PaidAt = &now
 	if err := s.paymentRepo.Update(p); err != nil {
 		return err
 	}
-	return s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingConfirmed)
+
+	// 2. Booking confirm (এটা আবশ্যক)
+	if err := s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingConfirmed); err != nil {
+		return err // এখানে fail হলে জানতে পারবে
+	}
+
+	// 3. Conversation — optional, fail হলেও চলবে
+	_ = s.ensureBookingConversations(p)
+
+	return nil
 }
+// func (s *service) markSuccessByTranID(tranID string) error {
+// 	p, err := s.paymentRepo.GetByTransactionID(tranID)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	if p.Status == StatusSuccess {
+// 		return nil
+// 	}
+// 	now := time.Now()
+// 	p.Status = StatusSuccess
+// 	p.PaidAt = &now
+// 	err = s.paymentRepo.Update(p);
+// 	if  err != nil {
+// 		return err
+// 	}
+
+//     conversationWithManagerUser := &messageDTO.StartConversationRequest {ReceiverID: p.EventInfo.ManagerID, EventID: &p.EventID}
+// 	conversationWithAdminUser := &messageDTO.StartConversationRequest {ReceiverID: p.UserID, EventID: &p.EventID}
+// 	admins, err := s.adminSVC.GetAllAdmin()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	for _,admin :=range admins{
+// 	_ , err =s.messageSVC.StartConversation(admin.ID, conversationWithManagerUser);
+// 	_,err=s.messageSVC.StartConversation(admin.ID, conversationWithAdminUser)
+
+// 	 if err != nil{
+// 		return errors.New(err.Error())
+// 	 }
+// 	}
+// 	 _ , err =s.messageSVC.StartConversation(p.UserID, conversationWithManagerUser);
+// 	 if err != nil{
+// 		return errors.New(err.Error())
+// 	 }
+
+// 	return s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingConfirmed)
+// }
 
 func (s *service) markSuccessBySession(sessionID string) error {
 	p, err := s.paymentRepo.GetBySessionID(sessionID)
@@ -548,7 +616,15 @@ func (s *service) HandleSSLCommerzIPN(ipn dto.SSLCommerzIPN) error {
 		p.Status = StatusSuccess
 		p.PaidAt = &now
 		_ = s.paymentRepo.Update(p)
-		return s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingConfirmed)
+		err := s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingConfirmed);
+		if err != nil {
+			return err
+		}
+
+		_ = s.ensureBookingConversations(p);
+
+		return nil;
+
 	case "FAILED":
 		return s.markFailedByTranID(ipn.TranID, StatusFailed)
 	case "CANCELLED", "CANCELED":
@@ -656,12 +732,15 @@ func (s *service) VerifySSLCommerzSession(tranID, status string) (*dto.PaymentRe
 
 	switch finalStatus {
 	case "SUCCESS":
-		now := time.Now()
-		p.Status = StatusSuccess
-		p.PaidAt = &now
-		_ = s.paymentRepo.Update(p)
-		_ = s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingConfirmed)
-	case "FAILED":
+   	
+	now := time.Now()
+	p.Status = StatusSuccess
+	p.PaidAt = &now
+	_ = s.paymentRepo.Update(p)
+	_ = s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingConfirmed)
+    _ = s.ensureBookingConversations(p)
+
+	case "FAILED": 
 		_ = s.markFailedByTranID(tranID, StatusFailed)
 	case "CANCELLED", "CANCELED":
 		_ = s.markFailedByTranID(tranID, StatusCancelled)
@@ -929,4 +1008,33 @@ func (s *service) ListPaymentMethodsAdmin(p query.Params) (*httpresponse.Paginat
 		Docs:           docs,
 		PaginationMeta: meta,
 	}, nil
+}
+
+
+func (s *service) ensureBookingConversations(p *Payment) error {
+	if p.EventInfo.ManagerID == 0 || p.UserID == 0 {
+		return nil
+	}
+
+	withManager := &messageDTO.StartConversationRequest{
+		ReceiverID: p.EventInfo.ManagerID,
+		EventID:    &p.EventID,
+	}
+	withUser := &messageDTO.StartConversationRequest{
+		ReceiverID: p.UserID,
+		EventID:    &p.EventID,
+	}
+
+	admins, err := s.adminSVC.GetAllAdmin()
+	if err != nil {
+		return nil // soft
+	}
+
+	for _, admin := range admins {
+		_, _ = s.messageSVC.StartConversation(admin.ID, withManager)
+		_, _ = s.messageSVC.StartConversation(admin.ID, withUser)
+	}
+
+	_, _ = s.messageSVC.StartConversation(p.UserID, withManager)
+	return nil
 }

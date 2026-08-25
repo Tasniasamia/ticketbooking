@@ -17,6 +17,7 @@ type Repository interface {
 	MarkAsVerified(email string) error
 	GetAll(p query.Params) ([]*User, int64, error)
 	GetUserActiveById (userId uint) (*User, error) 
+	GetAllAdmin() ([]*User, error) 
 }
 
 type repository struct {
@@ -110,4 +111,14 @@ func (r *repository) GetUserActiveById (userId uint) (*User, error) {
 	}
 
 	return &user, nil
+}
+
+
+func (r *repository) GetAllAdmin() ([]*User, error) {
+	var users []*User
+	result := r.db.Where("role = ?", "admin").Find(&users)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return users, nil
 }

@@ -6,20 +6,25 @@ import (
 	"ticketBooking/internal/config"
 	"ticketBooking/internal/currency"
 	"ticketBooking/internal/event"
+	"ticketBooking/internal/messaging"
 	middleware "ticketBooking/internal/middlewares"
+	"ticketBooking/internal/user"
 
 	"github.com/labstack/echo/v5"
 	"gorm.io/gorm"
 )
 
-func PaymentRegisterRoutes(api *echo.Group, db *gorm.DB, cfg config.Config) {
+func PaymentRegisterRoutes(api *echo.Group, db *gorm.DB, cfg config.Config,hub *messaging.Hub) {
 	svc := NewService(
 		NewRepository(db),
 		booking.NewRepository(db),
 		event.NewRepository(db),
 		currency.NewService(currency.NewRepository(db)),			
-		
+		messaging.NewService(messaging.NewRepository(db), hub),
+		user.NewUserRepository(db),
 	)
+		
+	
 	h := NewHandler(svc)
 	jwtSvc := auth.NewJWTService(cfg.JwtSecret)
 

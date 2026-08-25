@@ -100,7 +100,9 @@ func buildTree(comments []*Comment) []*dto.Response {
 		return []*dto.Response{}
 	}
 
-	nodeMap := make(map[uint]*dto.Response)
+	// [1] {Id, blogId,content}
+
+	nodeMap := make(map[uint]*dto.Response)  
 	var roots []*dto.Response
 
 	for _, c := range comments {

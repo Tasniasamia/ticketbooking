@@ -7,16 +7,18 @@ import (
 	"ticketBooking/internal/httpresponse"
 	"ticketBooking/internal/otp"
 	"ticketBooking/internal/user/dto"
-	"ticketBooking/internal/utils/query"
-)
+	"ticketBooking/internal/utils/query" )
 
+
+type messageService interface{
+StartConversation(senderID uint, req interface{}) (interface{}, error)
+}
 
 
 type Service struct{
 	repo Repository;
 	jwt auth.JwtService
 	otp  *otp.Service
-	
 }
 
 
@@ -284,9 +286,14 @@ func (s *Service) VerifyOTP(req *dto.VerifyOTPRequest) error {
 
 	// যদি register হয় তাহলে user কে verified করে দাও
 	if req.Reason == otp.ReasonRegister {
-		if err := s.repo.MarkAsVerified(req.Email); err != nil {
+				// kaj korte hobe. 
+
+		if err := s.repo.MarkAsVerified(req.Email); 
+		err != nil {
 			return fmt.Errorf("failed to verify user: %w", err)
 		}
+       
+
 	}
 
 	return nil

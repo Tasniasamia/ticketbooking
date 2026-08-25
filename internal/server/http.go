@@ -6,6 +6,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
+	"ticketBooking/internal/messaging"
 
 	"gorm.io/gorm"
 )
@@ -27,12 +28,10 @@ func Start(cfg config.Config,db *gorm.DB) {
     //server initiate
 	e := echo.New()
 	e.Validator = &CustomValidator{validator: validator.New()}
-   
+   	hub := messaging.NewHub()
+	go hub.Run()
 	
-    
-
-
-    // server buildin middleware
+  // server buildin middleware
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 
@@ -40,7 +39,7 @@ func Start(cfg config.Config,db *gorm.DB) {
 
 	//router middleware
 	api:=e.Group("/api/v1");
-	RegisterAllRoutes(api, db, cfg)
+	RegisterAllRoutes(api, db, cfg,hub)
 
 
    
