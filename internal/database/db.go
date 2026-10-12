@@ -16,6 +16,7 @@ func ConnectDatabase(cfg config.Config) *gorm.DB {
 	}), &gorm.Config{
 		TranslateError: true,
 	})
+	
 	if err != nil {
 		panic("Failed to connect to database")
 	}

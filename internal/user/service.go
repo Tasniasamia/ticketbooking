@@ -372,10 +372,22 @@ func (s *Service) GetAllUsers(params query.Params) (*httpresponse.PaginatedData,
 	}, nil
 }
 
-func (s *Service) GetUserById(userId uint) (*User, error){
+func (s *Service) GetUserById(userId uint) (*dto.UserResponse, error){
 	singleUser, err := s.repo.GetUserById(userId)
 	if err != nil {
 		return nil, err
 	}
-	return singleUser, nil
+	return  &dto.UserResponse{
+	Id:             singleUser.ID,
+	Name:           singleUser.Name,
+	Email:          singleUser.Email,
+	Role:           singleUser.Role,
+	Address:        singleUser.Address,
+	PhoneNumber:    singleUser.PhoneNumber,
+	Country:        singleUser.Country,
+	ProfileImage:   singleUser.ProfileImage,
+	ProfileImageId: singleUser.ProfileImageId,
+	CreatedAt:      singleUser.CreatedAt,
+	UpdatedAt:      singleUser.UpdatedAt,
+}, nil
 }

@@ -8,18 +8,18 @@ import (
 
 type LocalizedString map[string]string
 
-func (ls LocalizedString) Value() (driver.Value, error) {
+func (ls LocalizedString) Value() (driver.Value, error) {  //jakhon data insert kora hoy database e takhon aita hoy
 	if ls == nil {
 		return "{}", nil
 	}
-	b, err := json.Marshal(ls)
+	b, err := json.Marshal(ls) // byte convertion jakhon database e jai
 	if err != nil {
 		return nil, err
 	}
-	return string(b), nil   // ← []byte না, string
+	return string(b), nil   // ← []byte না, string   oi byte k string e convertion
 }
 
-func (ls *LocalizedString) Scan(value interface{}) error {
+func (ls *LocalizedString) Scan(value interface{}) error {   // jakhon output pawa lage takkon ai scan ta hoy.  {name:"bn"} erakom type
 	if value == nil {
 		*ls = make(LocalizedString)
 		return nil
@@ -31,7 +31,7 @@ func (ls *LocalizedString) Scan(value interface{}) error {
 	return json.Unmarshal(bytes, ls)
 }
 
-func (ls LocalizedString) Get(lang string) string {
+func (ls LocalizedString) Get(lang string) string {   
 	if val, ok := ls[lang]; ok && val != "" {
 		return val
 	}

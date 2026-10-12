@@ -9,7 +9,6 @@ import (
 func MediaRegisterRoutes(e *echo.Group, db *gorm.DB,config config.Config) {
 	cld, err := NewCloudinaryClient(config)
 	if err != nil {
-		// In production log & continue or panic based on preference
 		panic("Cloudinary init failed: " + err.Error())
 	}
 

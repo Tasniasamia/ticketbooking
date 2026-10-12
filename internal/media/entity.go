@@ -26,6 +26,7 @@ type Media struct {
 	Width        int    `json:"width"`
 	Height       int    `json:"height"`
 	OriginalName string `json:"original_name" gorm:"type:varchar(512)"`
+	
 }
 
 func (m *Media) ToResponse() *dto.Response {

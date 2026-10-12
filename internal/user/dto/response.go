@@ -9,7 +9,7 @@ type Response struct {
 	CreatedAt string `json:"created_at"`
 	IsVerified bool   `json:"is_verified"`
 	Token     string `json:"token,omitempty"`
-		Role           RoleType   `json:"role"`
+	Role           RoleType   `json:"role"`
 
 }
 

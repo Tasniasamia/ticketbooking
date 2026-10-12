@@ -514,43 +514,7 @@ func (s *service) markSuccessByTranID(tranID string) error {
 
 	return nil
 }
-// func (s *service) markSuccessByTranID(tranID string) error {
-// 	p, err := s.paymentRepo.GetByTransactionID(tranID)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if p.Status == StatusSuccess {
-// 		return nil
-// 	}
-// 	now := time.Now()
-// 	p.Status = StatusSuccess
-// 	p.PaidAt = &now
-// 	err = s.paymentRepo.Update(p);
-// 	if  err != nil {
-// 		return err
-// 	}
 
-//     conversationWithManagerUser := &messageDTO.StartConversationRequest {ReceiverID: p.EventInfo.ManagerID, EventID: &p.EventID}
-// 	conversationWithAdminUser := &messageDTO.StartConversationRequest {ReceiverID: p.UserID, EventID: &p.EventID}
-// 	admins, err := s.adminSVC.GetAllAdmin()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	for _,admin :=range admins{
-// 	_ , err =s.messageSVC.StartConversation(admin.ID, conversationWithManagerUser);
-// 	_,err=s.messageSVC.StartConversation(admin.ID, conversationWithAdminUser)
-
-// 	 if err != nil{
-// 		return errors.New(err.Error())
-// 	 }
-// 	}
-// 	 _ , err =s.messageSVC.StartConversation(p.UserID, conversationWithManagerUser);
-// 	 if err != nil{
-// 		return errors.New(err.Error())
-// 	 }
-
-// 	return s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingConfirmed)
-// }
 
 func (s *service) markSuccessBySession(sessionID string) error {
 	p, err := s.paymentRepo.GetBySessionID(sessionID)

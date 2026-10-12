@@ -2,7 +2,7 @@ package server;
 
 import (
 	"ticketBooking/internal/config"
-	"ticketBooking/internal/user"
+	
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
@@ -22,16 +22,17 @@ func (cv *CustomValidator) Validate(i any) error {
 }
 
 func Start(cfg config.Config,db *gorm.DB) {
-	//migration 
-	db.AutoMigrate(&user.User{})
+
 
     //server initiate
 	e := echo.New()
+
+	// message module
 	e.Validator = &CustomValidator{validator: validator.New()}
    	hub := messaging.NewHub()
 	go hub.Run()
 	
-  // server buildin middleware
+  // server Build-In middleware
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
 

@@ -14,9 +14,9 @@ import (
 func main() {
 
 
- cfg:=config.LoadConfig();
- db:=database.ConnectDatabase(cfg);
- database.RunMigrations(db)
+ cfg:=config.LoadConfig(); // env variables available for OS
+ db:=database.ConnectDatabase(cfg); // connect with database
+ database.RunMigrations(db) // migrate all table
 
 
   server.Start(cfg,db);
