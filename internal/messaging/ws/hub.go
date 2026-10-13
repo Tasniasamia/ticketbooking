@@ -15,19 +15,7 @@ type Client struct {
 	Hub    *Hub
 }
 
-// type client struct{
-// 	UserID uint
-// 	Send   chan []byte
-// 	clients map[uint]map[*Client]bool
 
-// 	mu      sync.RWMutex
-
-// 	register   chan *Client
-// 	unregister chan *Client
-// 	broadcast  chan *targetedMessage
-// }
-
-// Hub keeps track of all active connections.
 // One user can have multiple tabs/devices → multiple clients.
 type Hub struct {
 	// userID → set of clients

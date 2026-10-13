@@ -35,7 +35,26 @@ func Start(cfg config.Config,db *gorm.DB) {
   // server Build-In middleware
 	e.Use(middleware.RequestLogger())
 	e.Use(middleware.Recover())
-
+    e.Use(middleware.CORSWithConfig(
+        middleware.CORSConfig{
+            AllowOrigins: []string{
+                "*",
+            },
+            AllowMethods: []string{
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+                "OPTIONS",
+            },
+            AllowHeaders: []string{
+                "Origin",
+                "Content-Type",
+                "Authorization",
+            },
+        },
+    ))
 
 
 	//router middleware

@@ -26,7 +26,7 @@ func (h *Handler) List(c *echo.Context) error {
 		list *httpresponse.PaginatedData
 		err  error
 	)
-	if c.QueryParam("enabled") == "true" {
+	if c.QueryParam("status") == "enable" {
 		list, err = h.svc.ListEnabled(params)
 	} else {
 		list, err = h.svc.ListAll(params)
@@ -42,6 +42,7 @@ func (h *Handler) List(c *echo.Context) error {
 		Message: "OK", Data: list,
 	})
 }
+
 
 // GET /api/v1/currencies/default
 func (h *Handler) GetDefault(c *echo.Context) error {

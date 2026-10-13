@@ -21,6 +21,7 @@ func CurrencyRegisterRoutes(api *echo.Group, db *gorm.DB, cfg config.Config) {
 
 	// Public
 	g.GET("", h.List)
+
 	g.GET("/default", h.GetDefault)
 	g.GET("/:code", h.GetByCode)
 	g.POST("/convert", h.Convert)
@@ -28,6 +29,6 @@ func CurrencyRegisterRoutes(api *echo.Group, db *gorm.DB, cfg config.Config) {
 	// Admin (auth required — later add admin role middleware if needed)
 	g.POST("", h.Create, middleware.AuthMiddleware(jwtSvc))
 	g.PUT("/:id", h.Update, middleware.AuthMiddleware(jwtSvc))
-	g.POST("/set-default", h.SetDefault, middleware.AuthMiddleware(jwtSvc))
+	g.POST("/set-default", h.SetDefault)
 	g.DELETE("/:id", h.Delete, middleware.AuthMiddleware(jwtSvc))
 }

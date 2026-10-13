@@ -20,7 +20,7 @@ func RegisterRoutes(api *echo.Group, db *gorm.DB, cfg config.Config, hub *Hub) {
 	g := api.Group("/messaging")
 
 	// WebSocket – token via query ?token=... or Authorization header
-	g.GET("/ws", h.ServeWS)
+	g.GET("/ws", h.ServeWS)  //create websocket connection
 
 	// REST (all require auth)
 	authMW := middleware.AuthMiddleware(jwtSvc)
