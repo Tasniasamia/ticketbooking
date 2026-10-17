@@ -280,11 +280,11 @@ func (s *Service) DeleteUser(userId uint) error {
 
 
 func (s *Service) VerifyOTP(req *dto.VerifyOTPRequest) error {
-	if err := s.otp.Verify(req.Email, req.OTP, req.Reason); err != nil {
+	if err := s.otp.Verify(req.Email, req.OTP, req.Reason, false); err != nil {
 		return err
 	}
 
-	// যদি register হয় তাহলে user কে verified করে দাও
+	// যদি register হয় তাহলে user কে verified করে দাও
 	if req.Reason == otp.ReasonRegister {
 				// kaj korte hobe. 
 
@@ -313,9 +313,10 @@ func (s *Service) ForgotPassword(req *dto.ForgotPasswordRequest) error {
 // ResetPassword → OTP verify করে নতুন password সেট করে
 func (s *Service) ResetPassword(req *dto.ResetPasswordRequest) error {
 	// First verify OTP
-	if err := s.otp.Verify(req.Email, req.OTP, otp.ReasonResetPassword); err != nil {
+	if err := s.otp.Verify(req.Email, req.OTP, otp.ReasonResetPassword, true); err != nil {
 		return err
 	}
+
 
 	user, err := s.repo.GetUserByEmail(req.Email)
 	if err != nil || user == nil {
@@ -326,6 +327,13 @@ func (s *Service) ResetPassword(req *dto.ResetPasswordRequest) error {
 		return err
 	}
 
+    _, err = s.repo.UpdateUserFields(user.ID, map[string]interface{}{
+		"password": user.Password,
+	})
+		if(err != nil){
+		return err
+	}
+    
 	return nil;
 }
 

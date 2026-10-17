@@ -59,8 +59,9 @@ func (s *Service) GenerateAndSend(emailAddr, reason string) error {
 }
 
 // Verify checks OTP and marks it as used
-func (s *Service) Verify(emailAddr, code, reason string) error {
-	otp, err := s.repo.FindValidOTP(emailAddr, reason)
+func (s *Service) Verify(emailAddr, code, reason string, used bool) error {
+	otp, err := s.repo.FindValidOTP(emailAddr, reason, used)
+	
 	if err != nil {
 		return fmt.Errorf("invalid or expired OTP")
 	}
