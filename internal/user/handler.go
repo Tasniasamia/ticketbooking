@@ -1,6 +1,7 @@
 package user
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -147,6 +148,9 @@ func (h *handler) UpdateUser(c *echo.Context) error {
 	}
 
 	var req dto.UpdateRequest
+    
+	fmt.Println("var req dto.UpdateRequest ", req);
+
 
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, httpresponse.Error{

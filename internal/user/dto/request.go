@@ -44,7 +44,7 @@ type UpdateMemberRequest struct {
 }
 
 type UpdateRequest struct {
-	Name           *string `json:"name" validate:"required"`
+	Name           *string `json:"name" validate:"omitempty,min=2"`
 	Address        *string `json:"address"`
 	PhoneNumber    *string `json:"phone_number"`
 	Country        *string `json:"country"`
