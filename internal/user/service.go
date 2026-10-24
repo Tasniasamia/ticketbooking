@@ -140,6 +140,8 @@ if user.Role == dto.MANAGER {
 		ProfileImageId: user.ProfileImageId,
 		CreatedAt:      user.CreatedAt,
 		UpdatedAt:      user.UpdatedAt,
+		IsVerified: user.IsVerified,
+		Status: user.Status,
 	}, nil
 }
 
@@ -155,6 +157,8 @@ return &dto.UserResponse{
 	ProfileImageId: user.ProfileImageId,
 	CreatedAt:      user.CreatedAt,
 	UpdatedAt:      user.UpdatedAt,
+	IsVerified: user.IsVerified,
+	Status: user.Status,
 }, nil
 
 }
