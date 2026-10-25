@@ -31,28 +31,37 @@ func (s *Service) CreateEventCategory(req *dto.CreateEventCategoryRequest) (*dto
 }
 
 func (s *Service) GetAllEventCategories(params query.Params, lang string) (*httpresponse.PaginatedData, error) {
-	eventCategories, total, err := s.repo.GetAll(params,lang)
+	// search এর জন্য language লাগে, খালি হলে en
+	searchLang := lang
+	if searchLang == "" {
+		searchLang = "en"
+	}
+
+	eventCategories, total, err := s.repo.GetAll(params, searchLang)
 	if err != nil {
 		return nil, err
 	}
 
-	docs := make([]*dto.Response, 0, len(eventCategories))
+	docs := make([]any, 0, len(eventCategories))
 	for _, e := range eventCategories {
-		docs = append(docs, e.ToResponse(lang))
+		if lang == "" {
+			docs = append(docs, e.ToRawResponse())
+		} else {
+			docs = append(docs, e.ToResponse(lang))
+		}
 	}
 
 	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
-	return &httpresponse.PaginatedData{
-		Docs:           docs,
-		PaginationMeta: meta,
-	}, nil
+	return &httpresponse.PaginatedData{Docs: docs, PaginationMeta: meta}, nil
 }
 
-
-func (s *Service) GetEventCategoryByID(eventId uint, lang string) (*dto.Response, error) {
+func (s *Service) GetEventCategoryByID(eventId uint, lang string) (any, error) {
 	eventCategory, err := s.repo.GetByID(eventId)
 	if err != nil {
 		return nil, err
+	}
+	if lang == "" {
+		return eventCategory.ToRawResponse(), nil
 	}
 	return eventCategory.ToResponse(lang), nil
 }
