@@ -540,3 +540,12 @@ func (h *handler) DeleteEvent(c *echo.Context) error {
 	}
 	return ok(c, http.StatusOK, "Event deleted successfully", nil)
 }
+
+func (h *handler) GetUpcomingEvents(c *echo.Context) error {
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	docs, err := h.service.GetUpcomingEvents(limit)
+	if err != nil {
+		return fail(c, http.StatusInternalServerError, "Failed to fetch upcoming events", err)
+	}
+	return ok(c, http.StatusOK, "Upcoming events fetched successfully", map[string]any{"docs": docs})
+}

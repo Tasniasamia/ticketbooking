@@ -62,6 +62,7 @@ func EventRegisterRoutes(e *echo.Group, db *gorm.DB, config config.Config) {
 	route.GET("", h.GetAllEventsPublic)
 	route.GET("/public", h.GetAllEventsPublic)
 	route.GET("/:id", h.GetEventByID)
+	route.GET("/upcoming", h.GetUpcomingEvents) // :id এর আগে, নইলে "upcoming" id হয়ে যায়
 
 	// ---- Manager: নিজের event ----
 	route.POST("", h.CreateEvent, authMW, manager)

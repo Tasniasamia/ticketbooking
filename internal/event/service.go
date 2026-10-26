@@ -290,3 +290,16 @@ func (s *Service) UpdateEventStatus(req *dto.UpdateEventStatusRequest) error {
 	event.Status = req.Status
 	return s.repo.Update(event)
 }
+
+
+func (s *Service) GetUpcomingEvents(limit int) ([]*dto.RawResponse, error) {
+	events, err := s.repo.GetUpcoming(limit)
+	if err != nil {
+		return nil, err
+	}
+	docs := make([]*dto.RawResponse, 0, len(events))
+	for _, e := range events {
+		docs = append(docs, e.ToRawResponse())
+	}
+	return docs, nil
+}

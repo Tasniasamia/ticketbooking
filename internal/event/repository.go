@@ -110,6 +110,7 @@ package event
 import (
 	"errors"
 	"ticketBooking/internal/utils/query"
+	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -124,6 +125,8 @@ type Repository interface {
 	DecrementTickets(eventID uint, quantity int) error
 	IncrementTickets(eventID uint, quantity int) error
 	Delete(event *Event) error
+    GetUpcoming(limit int) ([]*Event, error)
+
 }
 
 type repository struct{ db *gorm.DB }
@@ -216,4 +219,22 @@ func (r *repository) IncrementTickets(eventID uint, quantity int) error {
 
 func (r *repository) Delete(event *Event) error {
 	return r.db.Delete(event).Error
+}
+
+func (r *repository) GetUpcoming(limit int) ([]*Event, error) {
+	if limit < 1 || limit > 100 {
+		limit = 10
+	}
+	var events []*Event
+	err := r.db.
+		Where("status = ? AND starts_at >= ?", "approved", time.Now().UTC()).
+		Order("starts_at ASC").
+		Limit(limit).
+		Preload("Manager").
+		Preload("Category").
+		Find(&events).Error
+	if err != nil {
+		return nil, err
+	}
+	return events, nil
 }
