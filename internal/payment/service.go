@@ -59,6 +59,7 @@ type Service interface {
 	GetPaymentMethod(id uint) (*dto.PaymentMethodResponse, error)
 ListPaymentMethods(p query.Params, enabledOnly bool) (*httpresponse.PaginatedData, error)
 ListPaymentMethodsAdmin(p query.Params) (*httpresponse.PaginatedData, error)
+rollback(b *booking.Booking, _ uint, _ int)
 }
 
 type service struct {
@@ -136,10 +137,6 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 		currencyCode = "BDT"
 	}
 
-	if err := s.eventRepo.DecrementTickets(req.EventID, req.Quantity); err != nil {
-		return nil, booking.ErrNotEnoughTickets
-	}
-
 	totalPrice := float64(req.Quantity) * float64(eventData.Price)
 	reason := "Event ticket booking"
 	if t := eventData.Title.Get("en"); t != "" {
@@ -154,9 +151,9 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 		Status:      bookingdto.BookingPending,
 		BookingCode: "GT-" + uuid.New().String(),
 	}
-	if err := s.bookingRepo.Create(b); err != nil {
-		_ = s.eventRepo.IncrementTickets(req.EventID, req.Quantity)
-		return nil, err
+	// ticket decrement + booking create ek transaction e
+	if err := s.bookingRepo.CreateWithReservation(b); err != nil {
+		return nil, err // ErrNotEnoughTickets ba DB error
 	}
 
 	tranID := generateTransactionID()
@@ -172,8 +169,7 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 		TransactionID: tranID,
 	}
 	if err := s.paymentRepo.Create(p); err != nil {
-		_ = s.bookingRepo.UpdateStatus(b.ID, bookingdto.BookingCancelled)
-		_ = s.eventRepo.IncrementTickets(req.EventID, req.Quantity)
+		s.rollback(b, req.EventID, req.Quantity)
 		return nil, err
 	}
 
@@ -214,6 +210,7 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 			SuccessURL:    successURL,
 			CancelURL:     cancelURL,
 			ClientRef:     tranID,
+			ExpiresAt:     time.Now().Add(booking.StripeMinExpiry).Unix(),
 			CustomerEmail: req.CustomerEmail,
 			Metadata: map[string]string{
 				"payment_id":     strconv.FormatUint(uint64(p.ID), 10),
@@ -230,14 +227,13 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 
 	case MethodSSLCommerz:
 		if strings.ToUpper(currencyCode) != "BDT" {
-			s.rollback(b, req.EventID, req.Quantity)
 			converted, err := s.currencySvc.Convert(totalPrice, strings.ToUpper(currencyCode), "BDT")
 			if err != nil {
-				return nil, errors.New("Failed to  BDT currency")
+				s.rollback(b, req.EventID, req.Quantity)
+				return nil, errors.New("failed to convert to BDT currency")
 			}
 			totalPrice = converted
 			currencyCode = "BDT"
-
 		}
 
 		storeID := creds["sslcommerz_store_id"]
@@ -339,9 +335,9 @@ func (s *service) CreateCheckout(userID uint, userName, userEmail string, req dt
 	}, nil
 }
 
-func (s *service) rollback(b *booking.Booking, eventID uint, qty int) {
-	_ = s.bookingRepo.UpdateStatus(b.ID, bookingdto.BookingCancelled)
-	_ = s.eventRepo.IncrementTickets(eventID, qty)
+// rollback: booking pending thakle cancel + ticket ferot (idempotent).
+func (s *service) rollback(b *booking.Booking, _ uint, _ int) {
+	_, _ = s.bookingRepo.ReleaseIfPending(b.ID)
 }
 
 func (s *service) HandleStripeWebhook(payload []byte, signature string) error {
@@ -505,8 +501,9 @@ func (s *service) markSuccessByTranID(tranID string) error {
 	}
 
 	// 2. Booking confirm (এটা আবশ্যক)
-	if err := s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingConfirmed); err != nil {
-		return err // এখানে fail হলে জানতে পারবে
+	// expire hoye gele abar ticket reserve kore confirm kore
+	if err := s.bookingRepo.ConfirmOrRevive(p.BookingID); err != nil {
+		return err
 	}
 
 	// 3. Conversation — optional, fail হলেও চলবে
@@ -534,11 +531,9 @@ func (s *service) markFailedByTranID(tranID string, st PaymentStatus) error {
 	}
 	p.Status = st
 	_ = s.paymentRepo.Update(p)
-	_ = s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingCancelled)
-	if b, e := s.bookingRepo.GetByID(p.BookingID); e == nil {
-		_ = s.eventRepo.IncrementTickets(b.EventID, b.Quantity)
-	}
-	return nil
+	// ticket sudhu ek bar-i ferot jabe, double call hoileo
+	_, err = s.bookingRepo.ReleaseIfPending(p.BookingID)
+	return err
 }
 
 func (s *service) markFailedBySession(sessionID string, st PaymentStatus) error {
@@ -580,8 +575,7 @@ func (s *service) HandleSSLCommerzIPN(ipn dto.SSLCommerzIPN) error {
 		p.Status = StatusSuccess
 		p.PaidAt = &now
 		_ = s.paymentRepo.Update(p)
-		err := s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingConfirmed);
-		if err != nil {
+		if err := s.bookingRepo.ConfirmOrRevive(p.BookingID); err != nil {
 			return err
 		}
 
@@ -701,8 +695,8 @@ func (s *service) VerifySSLCommerzSession(tranID, status string) (*dto.PaymentRe
 	p.Status = StatusSuccess
 	p.PaidAt = &now
 	_ = s.paymentRepo.Update(p)
-	_ = s.bookingRepo.UpdateStatus(p.BookingID, bookingdto.BookingConfirmed)
-    _ = s.ensureBookingConversations(p)
+	_ = s.bookingRepo.ConfirmOrRevive(p.BookingID)
+	_ = s.ensureBookingConversations(p)
 
 	case "FAILED": 
 		_ = s.markFailedByTranID(tranID, StatusFailed)
