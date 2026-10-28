@@ -1,9 +1,12 @@
+
+
 // package server
 
 // import (
 // 	"ticketBooking/internal/blog"
 // 	"ticketBooking/internal/booking"
 // 	"ticketBooking/internal/comment"
+// 	"ticketBooking/internal/live"
 // 	"ticketBooking/internal/messaging"
 
 // 	"ticketBooking/internal/config"
@@ -24,6 +27,9 @@
 // type RouteRegistrar func(api *echo.Group, db *gorm.DB, config config.Config)
 
 // func RegisterAllRoutes(api *echo.Group, db *gorm.DB, config config.Config, hub *messaging.Hub) {
+// 	// Public live channel: ticket sonkha bodlale browser ke push kore (WebSocket).
+// 	api.GET("/live/events", live.Default.Serve)
+
 // 	registrars := []RouteRegistrar{
 // 		//user.UserRegisterRoutes,
 // 		event.EventRegisterRoutes,
@@ -41,15 +47,14 @@
 // 	for _, register := range registrars {
 // 		register(api, db, config)
 // 	}
-// 		messaging.RegisterRoutes(api, db, config, hub);
-// 		payment.PaymentRegisterRoutes(api,db,config,hub);
-
-	
+// 	messaging.RegisterRoutes(api, db, config, hub)
+// 	payment.PaymentRegisterRoutes(api, db, config, hub)
 
 // 	// 2. user service-এ সেই msgService পাস করো
 // 	user.UserRegisterRoutes(api, db, config) // ← এখানে
 
 // }
+
 
 package server
 
@@ -59,6 +64,7 @@ import (
 	"ticketBooking/internal/comment"
 	"ticketBooking/internal/live"
 	"ticketBooking/internal/messaging"
+	messageDTO "ticketBooking/internal/messaging/dto"
 
 	"ticketBooking/internal/config"
 	"ticketBooking/internal/currency"
@@ -77,12 +83,22 @@ import (
 
 type RouteRegistrar func(api *echo.Group, db *gorm.DB, config config.Config)
 
+// messaging → user.ConversationStarter (package server, cycle নেই)
+type messagingConvBridge struct {
+	svc *messaging.Service
+}
+
+func (b *messagingConvBridge) Start(senderID, receiverID uint) error {
+	_, err := b.svc.StartConversation(senderID, &messageDTO.StartConversationRequest{
+		ReceiverID: receiverID,
+	})
+	return err
+}
+
 func RegisterAllRoutes(api *echo.Group, db *gorm.DB, config config.Config, hub *messaging.Hub) {
-	// Public live channel: ticket sonkha bodlale browser ke push kore (WebSocket).
 	api.GET("/live/events", live.Default.Serve)
 
 	registrars := []RouteRegistrar{
-		//user.UserRegisterRoutes,
 		event.EventRegisterRoutes,
 		language.LanguageRegisterRoutes,
 		translation.TranslationRegisterRoutes,
@@ -98,10 +114,11 @@ func RegisterAllRoutes(api *echo.Group, db *gorm.DB, config config.Config, hub *
 	for _, register := range registrars {
 		register(api, db, config)
 	}
+
 	messaging.RegisterRoutes(api, db, config, hub)
 	payment.PaymentRegisterRoutes(api, db, config, hub)
 
-	// 2. user service-এ সেই msgService পাস করো
-	user.UserRegisterRoutes(api, db, config) // ← এখানে
-
+	// verify-otp → admin conversation (user package messaging import করে না)
+	msgSvc := messaging.NewService(messaging.NewRepository(db), hub)
+	user.UserRegisterRoutes(api, db, config, &messagingConvBridge{svc: msgSvc})
 }
