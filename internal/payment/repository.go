@@ -2,7 +2,10 @@ package payment
 
 import (
 	"errors"
-	"strings"
+	// "strings"
+	// "ticketBooking/internal/utils/query"
+"strings"
+	// ... তোমার অন্য imports
 	"ticketBooking/internal/utils/query"
 
 	"gorm.io/gorm"
@@ -51,7 +54,46 @@ type Repository interface {
 type repository struct{ db *gorm.DB }
 
 func NewRepository(db *gorm.DB) Repository { return &repository{db: db} }
+// qualifyPaymentParams — join query-তে bare column ambiguous হয়
+// status/created_at দুটোই payments + bookings এ আছে
+func qualifyPaymentParams(p query.Params) query.Params {
+	out := p
+	if p.Filters != nil {
+		nf := make(map[string]interface{}, len(p.Filters))
+		for k, v := range p.Filters {
+			if strings.Contains(k, ".") {
+				nf[k] = v
+				continue
+			}
+			switch k {
+			case "status", "amount", "currency", "transaction_id", "paid_at",
+				"created_at", "updated_at", "payment_method", "booking_id",
+				"event_id", "user_id", "reason":
+				nf["payments."+k] = v
+			case "booking_code":
+				nf["bookings.booking_code"] = v
+			default:
+				nf[k] = v // unknown — as-is (বা skip করতে পারো)
+			}
+		}
+		out.Filters = nf
+	}
 
+	// default sort_by = "created_at" → payments.created_at
+	sb := p.SortBy
+	if sb == "" {
+		sb = "created_at"
+	}
+	if !strings.Contains(sb, ".") {
+		switch sb {
+		case "status", "amount", "created_at", "updated_at", "paid_at", "transaction_id", "currency":
+			out.SortBy = "payments." + sb
+		default:
+			out.SortBy = "payments.created_at"
+		}
+	}
+	return out
+}
 func (r *repository) Create(p *Payment) error { return r.db.Create(p).Error }
 func (r *repository) Update(p *Payment) error { return r.db.Save(p).Error }
 
@@ -97,43 +139,126 @@ func (r *repository) GetByUserID(userID uint) ([]Payment, error) {
 	return list, err
 }
 
-func (r *repository) GetAllPayments(params query.Params,lang string) ([]*Payment, int64, error) {
-    var list  []*Payment
+// func (r *repository) GetAllPayments(params query.Params,lang string) ([]*Payment, int64, error) {
+//     var list  []*Payment
+// 	var total int64
+
+// 	db := r.db.Model(&Payment{}).
+// 		Joins("JOIN events ON events.id = payments.event_id").
+// 		Joins("JOIN bookings ON bookings.id = payments.booking_id").
+// 		Joins("JOIN users ON users.id = payments.user_id")
+
+
+//    searchFields := []string{
+// 		"payments.transaction_id", "payments.status", "CAST(payments.paid_at AS TEXT)", "CAST(payments.amount AS TEXT)", }
+
+// 	// events.title / description যদি সাধারণ string হয়
+// 	joinedJsonbFields := []string{
+// 		"events.title",
+// 		"events.description",
+	
+// 	}
+
+// 	// যদি events.title / description JSONB হয় (multi-lang), তাহলে এখানে দাও:
+// 	// joinedJsonbFields := []string{"events.title", "events.description"}
+// 	joinedSearchFields := []string{	// "bookings.total_price", // number → ILIKE করবে না, চাইলে CAST করো
+// 		"users.name",
+// 		"users.email",
+// 		"users.role",
+// 	"bookings.booking_code",
+// } // এখন খালি রাখলাম
+
+// 	db = query.Apply(
+// 		db,
+// 		params,
+// 		searchFields,
+// 		nil,                 // jsonbFields (same table)
+// 		lang,                 // lang
+// 		joinedJsonbFields,   // joined JSONB
+// 		joinedSearchFields,  // joined string
+// 	)
+
+// 	if err := db.Count(&total).Error; err != nil {
+// 		return nil, 0, err
+// 	}
+
+// 	db = query.Paginate(db, params)
+
+// 	err := db.
+// 		Preload("Bookings").
+// 		Preload("UserInfo").
+// 		Preload("EventInfo").
+// 		Preload("EventInfo.Manager").
+// 		Preload("EventInfo.Category").
+// 		Find(&list).Error
+
+// 	if err != nil {
+// 		return nil, 0, err
+// 	}
+
+// 	return list, total, nil
+
+
+
+
+
+
+
+
+
+// 	// db = query.Apply(db, params,[]string{"transaction_id", "status", "created_at"},nil, nil,nil,nil)
+
+// 	// if err := db.Count(&total).Error; err != nil {
+// 	// 	return nil, 0, err
+// 	// }
+
+// 	// db = query.Paginate(db, params)
+
+// 	// err := db.Order("created_at DESC").Preload("Bookings").Preload("UserInfo").Preload("EventInfo").Preload("EventInfo.Manager").Preload("EventInfo.Category").Find(&list).Error
+
+// 	// if err != nil {
+// 	// 	return nil, 0, err
+// 	// }
+
+// 	// return list, total, nil
+// }
+
+func (r *repository) GetAllPayments(params query.Params, lang string) ([]*Payment, int64, error) {
+	var list []*Payment
 	var total int64
+
+	params = qualifyPaymentParams(params)
 
 	db := r.db.Model(&Payment{}).
 		Joins("JOIN events ON events.id = payments.event_id").
 		Joins("JOIN bookings ON bookings.id = payments.booking_id").
 		Joins("JOIN users ON users.id = payments.user_id")
 
-
-   searchFields := []string{
-		"payments.transaction_id", "payments.status", "CAST(payments.paid_at AS TEXT)", "CAST(payments.amount AS TEXT)", }
-
-	// events.title / description যদি সাধারণ string হয়
+	searchFields := []string{
+		"payments.transaction_id",
+		"payments.status",
+		"CAST(payments.paid_at AS TEXT)",
+		"CAST(payments.amount AS TEXT)",
+	}
 	joinedJsonbFields := []string{
 		"events.title",
 		"events.description",
-	
 	}
-
-	// যদি events.title / description JSONB হয় (multi-lang), তাহলে এখানে দাও:
-	// joinedJsonbFields := []string{"events.title", "events.description"}
-	joinedSearchFields := []string{	// "bookings.total_price", // number → ILIKE করবে না, চাইলে CAST করো
+	joinedSearchFields := []string{
 		"users.name",
 		"users.email",
 		"users.role",
-	"bookings.booking_code",
-} // এখন খালি রাখলাম
+		"bookings.booking_code",
+	}
 
 	db = query.Apply(
 		db,
 		params,
 		searchFields,
-		nil,                 // jsonbFields (same table)
-		lang,                 // lang
-		joinedJsonbFields,   // joined JSONB
-		joinedSearchFields,  // joined string
+		nil, // jsonbFields (same table)
+		lang,
+		joinedJsonbFields,
+		joinedSearchFields,
 	)
 
 	if err := db.Count(&total).Error; err != nil {
@@ -155,37 +280,12 @@ func (r *repository) GetAllPayments(params query.Params,lang string) ([]*Payment
 	}
 
 	return list, total, nil
-
-
-
-
-
-
-
-
-
-	// db = query.Apply(db, params,[]string{"transaction_id", "status", "created_at"},nil, nil,nil,nil)
-
-	// if err := db.Count(&total).Error; err != nil {
-	// 	return nil, 0, err
-	// }
-
-	// db = query.Paginate(db, params)
-
-	// err := db.Order("created_at DESC").Preload("Bookings").Preload("UserInfo").Preload("EventInfo").Preload("EventInfo.Manager").Preload("EventInfo.Category").Find(&list).Error
-
-	// if err != nil {
-	// 	return nil, 0, err
-	// }
-
-	// return list, total, nil
 }
-
-
-
-func (r *repository) GetManagerPayments(params query.Params, managerID uint,lang string) ([]*Payment, int64, error) {
+func (r *repository) GetManagerPayments(params query.Params, managerID uint, lang string) ([]*Payment, int64, error) {
 	var list []*Payment
 	var total int64
+
+	params = qualifyPaymentParams(params)
 
 	db := r.db.Model(&Payment{}).
 		Joins("JOIN events ON events.id = payments.event_id").
@@ -193,34 +293,31 @@ func (r *repository) GetManagerPayments(params query.Params, managerID uint,lang
 		Joins("JOIN users ON users.id = payments.user_id").
 		Where("events.manager_id = ?", managerID)
 
-	// same table (payments)
 	searchFields := []string{
-		"payments.transaction_id", "payments.status", "CAST(payments.paid_at AS TEXT)", "CAST(payments.amount AS TEXT)", }
-
-	// events.title / description যদি সাধারণ string হয়
+		"payments.transaction_id",
+		"payments.status",
+		"CAST(payments.paid_at AS TEXT)",
+		"CAST(payments.amount AS TEXT)",
+	}
 	joinedJsonbFields := []string{
 		"events.title",
 		"events.description",
-	
 	}
-
-	// যদি events.title / description JSONB হয় (multi-lang), তাহলে এখানে দাও:
-	// joinedJsonbFields := []string{"events.title", "events.description"}
-	joinedSearchFields := []string{	// "bookings.total_price", // number → ILIKE করবে না, চাইলে CAST করো
+	joinedSearchFields := []string{
 		"users.name",
 		"users.email",
 		"users.role",
-	"bookings.booking_code",
-} // এখন খালি রাখলাম
+		"bookings.booking_code",
+	}
 
 	db = query.Apply(
 		db,
 		params,
 		searchFields,
-		nil,                 // jsonbFields (same table)
-		lang,                 // lang
-		joinedJsonbFields,   // joined JSONB
-		joinedSearchFields,  // joined string
+		nil,
+		lang,
+		joinedJsonbFields,
+		joinedSearchFields,
 	)
 
 	if err := db.Count(&total).Error; err != nil {
@@ -244,42 +341,43 @@ func (r *repository) GetManagerPayments(params query.Params, managerID uint,lang
 	return list, total, nil
 }
 
-func (r *repository) GetUserPayments(params query.Params, userID uint,lang string) ([]*Payment, int64, error){
-	var list  []*Payment
+func (r *repository) GetUserPayments(params query.Params, userID uint, lang string) ([]*Payment, int64, error) {
+	var list []*Payment
 	var total int64
+
+	params = qualifyPaymentParams(params)
 
 	db := r.db.Model(&Payment{}).
 		Joins("JOIN events ON events.id = payments.event_id").
 		Joins("JOIN bookings ON bookings.id = payments.booking_id").
-		Joins("JOIN users ON users.id = payments.user_id").Where("payments.user_id = ?", userID)
+		Joins("JOIN users ON users.id = payments.user_id").
+		Where("payments.user_id = ?", userID)
 
-searchFields := []string{
-		"payments.transaction_id", "payments.status", "CAST(payments.paid_at AS TEXT)", "CAST(payments.amount AS TEXT)", }
-
-	// events.title / description যদি সাধারণ string হয়
+	searchFields := []string{
+		"payments.transaction_id",
+		"payments.status",
+		"CAST(payments.paid_at AS TEXT)",
+		"CAST(payments.amount AS TEXT)",
+	}
 	joinedJsonbFields := []string{
 		"events.title",
 		"events.description",
-	
 	}
-
-	// যদি events.title / description JSONB হয় (multi-lang), তাহলে এখানে দাও:
-	// joinedJsonbFields := []string{"events.title", "events.description"}
-	joinedSearchFields := []string{	// "bookings.total_price", // number → ILIKE করবে না, চাইলে CAST করো
+	joinedSearchFields := []string{
 		"users.name",
 		"users.email",
 		"users.role",
-	"bookings.booking_code",
-} // এখন খালি রাখলাম
+		"bookings.booking_code",
+	}
 
 	db = query.Apply(
 		db,
 		params,
 		searchFields,
-		nil,                 // jsonbFields (same table)
-		lang,                 // lang
-		joinedJsonbFields,   // joined JSONB
-		joinedSearchFields,  // joined string
+		nil,
+		lang,
+		joinedJsonbFields,
+		joinedSearchFields,
 	)
 
 	if err := db.Count(&total).Error; err != nil {
@@ -302,6 +400,125 @@ searchFields := []string{
 
 	return list, total, nil
 }
+// func (r *repository) GetManagerPayments(params query.Params, managerID uint,lang string) ([]*Payment, int64, error) {
+// 	var list []*Payment
+// 	var total int64
+
+// 	db := r.db.Model(&Payment{}).
+// 		Joins("JOIN events ON events.id = payments.event_id").
+// 		Joins("JOIN bookings ON bookings.id = payments.booking_id").
+// 		Joins("JOIN users ON users.id = payments.user_id").
+// 		Where("events.manager_id = ?", managerID)
+
+// 	// same table (payments)
+// 	searchFields := []string{
+// 		"payments.transaction_id", "payments.status", "CAST(payments.paid_at AS TEXT)", "CAST(payments.amount AS TEXT)", }
+
+// 	// events.title / description যদি সাধারণ string হয়
+// 	joinedJsonbFields := []string{
+// 		"events.title",
+// 		"events.description",
+	
+// 	}
+
+// 	// যদি events.title / description JSONB হয় (multi-lang), তাহলে এখানে দাও:
+// 	// joinedJsonbFields := []string{"events.title", "events.description"}
+// 	joinedSearchFields := []string{	// "bookings.total_price", // number → ILIKE করবে না, চাইলে CAST করো
+// 		"users.name",
+// 		"users.email",
+// 		"users.role",
+// 	"bookings.booking_code",
+// } // এখন খালি রাখলাম
+
+// 	db = query.Apply(
+// 		db,
+// 		params,
+// 		searchFields,
+// 		nil,                 // jsonbFields (same table)
+// 		lang,                 // lang
+// 		joinedJsonbFields,   // joined JSONB
+// 		joinedSearchFields,  // joined string
+// 	)
+
+// 	if err := db.Count(&total).Error; err != nil {
+// 		return nil, 0, err
+// 	}
+
+// 	db = query.Paginate(db, params)
+
+// 	err := db.
+// 		Preload("Bookings").
+// 		Preload("UserInfo").
+// 		Preload("EventInfo").
+// 		Preload("EventInfo.Manager").
+// 		Preload("EventInfo.Category").
+// 		Find(&list).Error
+
+// 	if err != nil {
+// 		return nil, 0, err
+// 	}
+
+// 	return list, total, nil
+// }
+
+// func (r *repository) GetUserPayments(params query.Params, userID uint,lang string) ([]*Payment, int64, error){
+// 	var list  []*Payment
+// 	var total int64
+
+// 	db := r.db.Model(&Payment{}).
+// 		Joins("JOIN events ON events.id = payments.event_id").
+// 		Joins("JOIN bookings ON bookings.id = payments.booking_id").
+// 		Joins("JOIN users ON users.id = payments.user_id").Where("payments.user_id = ?", userID)
+
+// searchFields := []string{
+// 		"payments.transaction_id", "payments.status", "CAST(payments.paid_at AS TEXT)", "CAST(payments.amount AS TEXT)", }
+
+// 	// events.title / description যদি সাধারণ string হয়
+// 	joinedJsonbFields := []string{
+// 		"events.title",
+// 		"events.description",
+	
+// 	}
+
+// 	// যদি events.title / description JSONB হয় (multi-lang), তাহলে এখানে দাও:
+// 	// joinedJsonbFields := []string{"events.title", "events.description"}
+// 	joinedSearchFields := []string{	// "bookings.total_price", // number → ILIKE করবে না, চাইলে CAST করো
+// 		"users.name",
+// 		"users.email",
+// 		"users.role",
+// 	"bookings.booking_code",
+// } // এখন খালি রাখলাম
+
+// 	db = query.Apply(
+// 		db,
+// 		params,
+// 		searchFields,
+// 		nil,                 // jsonbFields (same table)
+// 		lang,                 // lang
+// 		joinedJsonbFields,   // joined JSONB
+// 		joinedSearchFields,  // joined string
+// 	)
+
+// 	if err := db.Count(&total).Error; err != nil {
+// 		return nil, 0, err
+// 	}
+
+// 	db = query.Paginate(db, params)
+
+// 	err := db.
+// 		Preload("Bookings").
+// 		Preload("UserInfo").
+// 		Preload("EventInfo").
+// 		Preload("EventInfo.Manager").
+// 		Preload("EventInfo.Category").
+// 		Find(&list).Error
+
+// 	if err != nil {
+// 		return nil, 0, err
+// 	}
+
+// 	return list, total, nil
+// }
 
 func applyAggregateFilters(db *gorm.DB, params query.Params, searchFields []string) *gorm.DB {
 	if params.Search != "" && len(searchFields) > 0 {
@@ -315,9 +532,15 @@ func applyAggregateFilters(db *gorm.DB, params query.Params, searchFields []stri
 			db = db.Where(strings.Join(conditions, " OR "), args...)
 		}
 	}
+
 	if len(params.Filters) > 0 {
 		for col, val := range params.Filters {
-			db = db.Where(col+" = ?", val)
+			// bare "status" → "payments.status" (join + single-table দুটোতেই safe)
+			c := col
+			if !strings.Contains(c, ".") {
+				c = "payments." + c
+			}
+			db = db.Where(c+" = ?", val)
 		}
 	}
 	return db
@@ -326,9 +549,9 @@ func applyAggregateFilters(db *gorm.DB, params query.Params, searchFields []stri
 func (r *repository) AggregateAllPayments(params query.Params) ([]PaymentAmountRow, error) {
 	var rows []PaymentAmountRow
 	db := r.db.Model(&Payment{}).
-		Select("status, currency, COALESCE(SUM(amount), 0) as total")
-	db = applyAggregateFilters(db, params, []string{"transaction_id", "status"})
-	err := db.Group("status, currency").Scan(&rows).Error
+		Select("payments.status as status, payments.currency as currency, COALESCE(SUM(payments.amount), 0) as total")
+	db = applyAggregateFilters(db, params, []string{"payments.transaction_id", "payments.status"})
+	err := db.Group("payments.status, payments.currency").Scan(&rows).Error
 	return rows, err
 }
 
@@ -346,10 +569,10 @@ func (r *repository) AggregateManagerPayments(params query.Params, managerID uin
 func (r *repository) AggregateUserPayments(params query.Params, userID uint) ([]PaymentAmountRow, error) {
 	var rows []PaymentAmountRow
 	db := r.db.Model(&Payment{}).
-		Select("status, currency, COALESCE(SUM(amount), 0) as total").
-		Where("user_id = ?", userID)
-	db = applyAggregateFilters(db, params, []string{"transaction_id", "status"})
-	err := db.Group("status, currency").Scan(&rows).Error
+		Select("payments.status as status, payments.currency as currency, COALESCE(SUM(payments.amount), 0) as total").
+		Where("payments.user_id = ?", userID)
+	db = applyAggregateFilters(db, params, []string{"payments.transaction_id", "payments.status"})
+	err := db.Group("payments.status, payments.currency").Scan(&rows).Error
 	return rows, err
 }
 

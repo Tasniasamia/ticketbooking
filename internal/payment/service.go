@@ -711,9 +711,18 @@ func (s *service) VerifySSLCommerzSession(tranID, status string) (*dto.PaymentRe
 	}
 	return p.ToResponse(code), nil
 }
+// emptyAggParams — summary filter/search ignore; list params অপরিবর্তিত
+func emptyAggParams() query.Params {
+	return query.Params{
+		Page:    1,
+		Limit:   1,
+		Filters: map[string]interface{}{}, // খালি
+		// Search / SortBy ইত্যাদি খালিই থাকবে
+	}
+}
 
-func (s *service) GetAllPayments(params query.Params,lang string) (*PaymentsListData, error) {
-	events, total, err := s.paymentRepo.GetAllPayments(params,lang)
+func (s *service) GetAllPayments(params query.Params, lang string) (*PaymentsListData, error) {
+	events, total, err := s.paymentRepo.GetAllPayments(params, lang)
 	if err != nil {
 		return nil, err
 	}
@@ -723,7 +732,8 @@ func (s *service) GetAllPayments(params query.Params,lang string) (*PaymentsList
 		docs = append(docs, e.ToRawResponse())
 	}
 
-	rows, err := s.paymentRepo.AggregateAllPayments(params)
+	// summary: filter/search ছাড়া সব payment
+	rows, err := s.paymentRepo.AggregateAllPayments(emptyAggParams())
 	if err != nil {
 		return nil, err
 	}
@@ -750,7 +760,7 @@ func (s *service) GetManagerPayments(params query.Params, managerID uint, lang s
 		docs = append(docs, e.ToRawResponse())
 	}
 
-	rows, err := s.paymentRepo.AggregateManagerPayments(params, managerID)
+	rows, err := s.paymentRepo.AggregateManagerPayments(emptyAggParams(), managerID)
 	if err != nil {
 		return nil, err
 	}
@@ -777,7 +787,7 @@ func (s *service) GetUserPayments(params query.Params, userID uint, lang string)
 		docs = append(docs, e.ToRawResponse())
 	}
 
-	rows, err := s.paymentRepo.AggregateUserPayments(params, userID)
+	rows, err := s.paymentRepo.AggregateUserPayments(emptyAggParams(), userID)
 	if err != nil {
 		return nil, err
 	}
@@ -792,6 +802,86 @@ func (s *service) GetUserPayments(params query.Params, userID uint, lang string)
 		Payment: summary,
 	}, nil
 }
+// func (s *service) GetAllPayments(params query.Params,lang string) (*PaymentsListData, error) {
+// 	events, total, err := s.paymentRepo.GetAllPayments(params,lang)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	docs := make([]*dto.PaymentResponse, 0, len(events))
+// 	for _, e := range events {
+// 		docs = append(docs, e.ToRawResponse())
+// 	}
+
+// 	rows, err := s.paymentRepo.AggregateAllPayments(params)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	summary := s.buildPaymentSummary(rows)
+
+// 	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
+// 	return &PaymentsListData{
+// 		PaginatedData: &httpresponse.PaginatedData{
+// 			Docs:           docs,
+// 			PaginationMeta: meta,
+// 		},
+// 		Payment: summary,
+// 	}, nil
+// }
+
+// func (s *service) GetManagerPayments(params query.Params, managerID uint, lang string) (*PaymentsListData, error) {
+// 	events, total, err := s.paymentRepo.GetManagerPayments(params, managerID, lang)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	docs := make([]*dto.PaymentResponse, 0, len(events))
+// 	for _, e := range events {
+// 		docs = append(docs, e.ToRawResponse())
+// 	}
+
+// 	rows, err := s.paymentRepo.AggregateManagerPayments(params, managerID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	summary := s.buildPaymentSummary(rows)
+
+// 	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
+// 	return &PaymentsListData{
+// 		PaginatedData: &httpresponse.PaginatedData{
+// 			Docs:           docs,
+// 			PaginationMeta: meta,
+// 		},
+// 		Payment: summary,
+// 	}, nil
+// }
+
+// func (s *service) GetUserPayments(params query.Params, userID uint, lang string) (*PaymentsListData, error) {
+// 	events, total, err := s.paymentRepo.GetUserPayments(params, userID, lang)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	docs := make([]*dto.PaymentResponse, 0, len(events))
+// 	for _, e := range events {
+// 		docs = append(docs, e.ToRawResponse())
+// 	}
+
+// 	rows, err := s.paymentRepo.AggregateUserPayments(params, userID)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	summary := s.buildPaymentSummary(rows)
+
+// 	meta := httpresponse.BuildPaginationMeta(total, params.Page, params.Limit)
+// 	return &PaymentsListData{
+// 		PaginatedData: &httpresponse.PaginatedData{
+// 			Docs:           docs,
+// 			PaginationMeta: meta,
+// 		},
+// 		Payment: summary,
+// 	}, nil
+// }
 
 // toDefaultCurrency converts amount from `from` into site default currency via currency.Service.Convert.
 func (s *service) toDefaultCurrency(amount float64, from string) float64 {
