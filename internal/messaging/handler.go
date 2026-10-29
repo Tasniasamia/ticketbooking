@@ -175,6 +175,56 @@ func (h *Handler) MarkRead(c *echo.Context) error {
 	})
 }
 
+
+func (h *Handler) EditMessage(c *echo.Context) error {
+	userID, ok := c.Get("user_id").(uint)
+	if !ok {
+		return unauthorized(c)
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		return badRequest(c, "invalid id", err)
+	}
+	var req dto.EditMessageRequest
+	if err := c.Bind(&req); err != nil {
+		return badRequest(c, "invalid request body", err)
+	}
+	res, err := h.svc.EditMessage(userID, uint(id), req.Content)
+	if err != nil {
+		if err == ErrForbidden || err == ErrMessageNotFound {
+			return c.JSON(http.StatusForbidden, httpresponse.Error{
+				Success: false, StatusCode: 403, Error: true, ErrorMessage: err.Error(),
+			})
+		}
+		return serverError(c, err)
+	}
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: 200, Message: "message updated", Data: res,
+	})
+}
+
+func (h *Handler) DeleteMessage(c *echo.Context) error {
+	userID, ok := c.Get("user_id").(uint)
+	if !ok {
+		return unauthorized(c)
+	}
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		return badRequest(c, "invalid id", err)
+	}
+	if err := h.svc.DeleteMessage(userID, uint(id)); err != nil {
+		if err == ErrForbidden || err == ErrMessageNotFound {
+			return c.JSON(http.StatusForbidden, httpresponse.Error{
+				Success: false, StatusCode: 403, Error: true, ErrorMessage: err.Error(),
+			})
+		}
+		return serverError(c, err)
+	}
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: 200, Message: "message deleted",
+	})
+}
+
 // ---------- WebSocket endpoint ----------
 
 // GET /api/v1/messaging/ws?token=<jwt>

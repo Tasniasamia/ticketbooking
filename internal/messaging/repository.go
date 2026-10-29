@@ -24,6 +24,9 @@ type Repository interface {
 
 	// Message
 	CreateMessage(msg *Message) error
+	GetMessageByID(id uint) (*Message, error)
+	UpdateMessage(msg *Message) error
+	DeleteMessage(id uint) error
 	GetMessages(convID uint, limit, offset int) ([]Message, int64, error)
 	MarkMessagesRead(convID uint, userID uint, messageIDs []uint) (int64, error)
 	UnreadCount(convID uint, userID uint) (int64, error)
@@ -211,3 +214,28 @@ func (r *repository) shareCommonEvent(userA, userB uint) (bool, error) {
 	`, userA, userB).Scan(&count).Error
 	return count > 0, err
 }
+
+func (r *repository) GetMessageByID(id uint) (*Message, error) {
+	var m Message
+	err := r.db.Preload("Sender").First(&m, id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrMessageNotFound
+	}
+	return &m, err
+}
+
+func (r *repository) UpdateMessage(msg *Message) error {
+	return r.db.Save(msg).Error
+}
+
+func (r *repository) DeleteMessage(id uint) error {
+	res := r.db.Delete(&Message{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrMessageNotFound
+	}
+	return nil
+}
+
