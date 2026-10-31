@@ -1,0 +1,11 @@
+package dto
+import "time"
+type FAQResponse struct {
+	ID uint `json:"id"`
+	Question string `json:"question"`
+	Answer string `json:"answer"`
+	IsActive bool `json:"is_active"`
+	SortOrder int `json:"sort_order"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}

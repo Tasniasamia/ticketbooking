@@ -445,3 +445,27 @@ func (h *handler) GetAllManager(c *echo.Context) error {
 		Message: "Users fetched successfully", Data: data,
 	})
 }
+
+func (h *handler) GetPublicManagers(c *echo.Context) error {
+	params := query.Parse(c)
+	params.Filters["role"] = "manager"
+	params.Filters["status"] = "active"
+	params.Filters["is_verified"] = true
+	data, err := h.service.GetAllUsers(params)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, httpresponse.Error{Success: false, StatusCode: http.StatusInternalServerError, Error: true, ErrorMessage: "Failed to fetch managers", ErrorDetails: err.Error()})
+	}
+	return c.JSON(http.StatusOK, httpresponse.Success{Success: true, StatusCode: http.StatusOK, Message: "Managers fetched successfully", Data: data})
+}
+
+func (h *handler) GetPublicManagerById(c *echo.Context) error {
+	userId, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{Success: false, StatusCode: http.StatusBadRequest, Error: true, ErrorMessage: "Invalid manager ID"})
+	}
+	user, err := h.service.GetPublicManagerById(uint(userId))
+	if err != nil {
+		return c.JSON(http.StatusNotFound, httpresponse.Error{Success: false, StatusCode: http.StatusNotFound, Error: true, ErrorMessage: "Manager not found"})
+	}
+	return c.JSON(http.StatusOK, httpresponse.Success{Success: true, StatusCode: http.StatusOK, Message: "Manager fetched successfully", Data: user})
+}

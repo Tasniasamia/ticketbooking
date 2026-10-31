@@ -862,3 +862,10 @@ func (s *Service) GetUserById(userId uint) (*dto.UserResponse, error){
 	UpdatedAt:      singleUser.UpdatedAt,
 }, nil
 }
+
+func (s *Service) GetPublicManagerById(userId uint) (*dto.UserResponse, error) {
+	u, err := s.repo.GetUserActiveById(userId)
+	if err != nil { return nil, err }
+	if u.Role != dto.MANAGER { return nil, fmt.Errorf("manager not found") }
+	return u.buildUserResponse(), nil
+}

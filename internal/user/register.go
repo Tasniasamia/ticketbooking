@@ -105,6 +105,8 @@ func UserRegisterRoutes(e *echo.Group, db *gorm.DB, config config.Config, conv .
 	authRoute.POST("/resend-otp", NewUserHandler.ResendOTP)
 	authRoute.GET("/all", NewUserHandler.GetAllUsers, middleware.AuthMiddleware(JWTService), middleware.AdminMiddleware())
 	authRoute.GET("/all/managers", NewUserHandler.GetAllManager, middleware.AuthMiddleware(JWTService), middleware.AdminMiddleware())
+	authRoute.GET("/managers/public", NewUserHandler.GetPublicManagers)
+	authRoute.GET("/managers/public/:id", NewUserHandler.GetPublicManagerById)
 	authRoute.GET("/:id", NewUserHandler.GetUserById, middleware.AuthMiddleware(JWTService), middleware.AdminMiddleware())
 
 	authRoute.GET("/", func(c *echo.Context) error {

@@ -4,6 +4,8 @@ import (
 	"ticketBooking/internal/blog"
 	"ticketBooking/internal/booking"
 	"ticketBooking/internal/comment"
+	"ticketBooking/internal/contact"
+	"ticketBooking/internal/faq"
 	"ticketBooking/internal/currency"
 	"ticketBooking/internal/event"
 	"ticketBooking/internal/eventCategory"
@@ -13,6 +15,8 @@ import (
 	"ticketBooking/internal/otp"
 	"ticketBooking/internal/payment"
 	"ticketBooking/internal/settings"
+	"ticketBooking/internal/subscribe"
+	"ticketBooking/internal/testimonial"
 
 	"ticketBooking/internal/translation"
 	"ticketBooking/internal/user"
@@ -40,6 +44,10 @@ func RunMigrations(db *gorm.DB) {
 		&comment.Comment{},
         &messaging.Conversation{},
 		&messaging.Message{},
+		&faq.FAQ{},
+		&testimonial.Testimonial{},
+		&contact.Contact{},
+		&subscribe.Subscribe{},
 	)
 	if err != nil {
 		panic("migration failed: " + err.Error())
