@@ -108,7 +108,7 @@ func UserRegisterRoutes(e *echo.Group, db *gorm.DB, config config.Config, conv .
 	authRoute.GET("/managers/public", NewUserHandler.GetPublicManagers)
 	authRoute.GET("/managers/public/:id", NewUserHandler.GetPublicManagerById)
 	authRoute.GET("/:id", NewUserHandler.GetUserById, middleware.AuthMiddleware(JWTService), middleware.AdminMiddleware())
-
+authRoute.PATCH("/update-password", NewUserHandler.UpdatePassword, middleware.AuthMiddleware(JWTService))
 	authRoute.GET("/", func(c *echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"message": "Hello, World!"})
 	})

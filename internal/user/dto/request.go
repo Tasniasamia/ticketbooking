@@ -78,3 +78,8 @@ type ResendOTPRequest struct {
 	Email  string `json:"email" validate:"required,email"`
 	Reason string `json:"reason" validate:"required,oneof=register reset_password"`
 }
+
+type UpdatePasswordRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required"`
+	NewPassword     string `json:"new_password" validate:"required,min=8"`
+}

@@ -869,3 +869,29 @@ func (s *Service) GetPublicManagerById(userId uint) (*dto.UserResponse, error) {
 	if u.Role != dto.MANAGER { return nil, fmt.Errorf("manager not found") }
 	return u.buildUserResponse(), nil
 }
+
+var (
+	ErrCurrentPasswordWrong = errors.New("current password is incorrect")
+	ErrSamePassword         = errors.New("new password must be different from the current password")
+	ErrUserNotFound         = errors.New("user not found")
+)
+
+func (s *Service) UpdatePassword(userId uint, req *dto.UpdatePasswordRequest) error {
+	user, err := s.repo.GetUserById(userId)
+	if err != nil || user == nil {
+		return ErrUserNotFound
+	}
+	if err := user.checkPassword(req.CurrentPassword); err != nil {
+		return ErrCurrentPasswordWrong
+	}
+	if req.CurrentPassword == req.NewPassword {
+		return ErrSamePassword
+	}
+	if err := user.hashPassword(req.NewPassword); err != nil {
+		return err
+	}
+	_, err = s.repo.UpdateUserFields(user.ID, map[string]interface{}{
+		"password": user.Password,
+	})
+	return err
+}

@@ -469,3 +469,46 @@ func (h *handler) GetPublicManagerById(c *echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, httpresponse.Success{Success: true, StatusCode: http.StatusOK, Message: "Manager fetched successfully", Data: user})
 }
+
+
+func (h *handler) UpdatePassword(c *echo.Context) error {
+	userId, ok := c.Get("user_id").(uint)
+	if !ok {
+		return c.JSON(http.StatusUnauthorized, httpresponse.Error{
+			Success: false, StatusCode: http.StatusUnauthorized, Error: true,
+			ErrorMessage: "Unauthorized",
+			ErrorDetails: "Cannot get user ID from authentication middleware",
+		})
+	}
+
+	var req dto.UpdatePasswordRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: http.StatusBadRequest, Error: true,
+			ErrorMessage: "Invalid request body", ErrorDetails: err.Error(),
+		})
+	}
+	if err := c.Validate(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, httpresponse.Error{
+			Success: false, StatusCode: http.StatusBadRequest, Error: true,
+			ErrorMessage: "Validation failed", ErrorDetails: err.Error(),
+		})
+	}
+
+	if err := h.service.UpdatePassword(userId, &req); err != nil {
+		status := http.StatusInternalServerError
+		switch err {
+		case ErrCurrentPasswordWrong, ErrSamePassword:
+			status = http.StatusBadRequest
+		case ErrUserNotFound:
+			status = http.StatusNotFound
+		}
+		return c.JSON(status, httpresponse.Error{
+			Success: false, StatusCode: status, Error: true, ErrorMessage: err.Error(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, httpresponse.Success{
+		Success: true, StatusCode: http.StatusOK, Message: "Password updated successfully",
+	})
+}
