@@ -5,12 +5,13 @@ import (
 	"ticketBooking/internal/booking"
 	"ticketBooking/internal/comment"
 	"ticketBooking/internal/contact"
+	"ticketBooking/internal/dashboard"
 	"ticketBooking/internal/faq"
-	"ticketBooking/internal/subscribe"
-	"ticketBooking/internal/testimonial"
 	"ticketBooking/internal/live"
 	"ticketBooking/internal/messaging"
 	messageDTO "ticketBooking/internal/messaging/dto"
+	"ticketBooking/internal/subscribe"
+	"ticketBooking/internal/testimonial"
 
 	"ticketBooking/internal/config"
 	"ticketBooking/internal/currency"
@@ -59,6 +60,7 @@ func RegisterAllRoutes(api *echo.Group, db *gorm.DB, config config.Config, hub *
 		testimonial.TestimonialRegisterRoutes,
 		contact.ContactRegisterRoutes,
 		subscribe.SubscribeRegisterRoutes,
+		dashboard.DashboardRegisterRoutes,
 	}
 
 	for _, register := range registrars {
